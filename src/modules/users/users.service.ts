@@ -9,6 +9,7 @@ import { Model } from 'mongoose';
 import { AddAddressDto } from './dto/add-address.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserRole } from './enums/user-role.enum';
 import { User, UserDocument } from './schemas/user.schema';
 
 @Injectable()
@@ -26,12 +27,13 @@ export class UsersService {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const safeRole = role ?? UserRole.ADMIN;
 
     const newUser = new this.userModel({
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
-      role,
+      role: safeRole,
       phone,
     });
 

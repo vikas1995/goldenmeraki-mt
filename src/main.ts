@@ -18,10 +18,6 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Global Prefix
-  const apiPrefix = configService.get<string>('app.apiPrefix') || 'api/v1';
-  app.setGlobalPrefix(apiPrefix);
-
   // Global Pipes, Filters & Interceptors
   app.useGlobalPipes(
     new ValidationPipe({
@@ -59,7 +55,7 @@ async function bootstrap() {
 
   const port = configService.get<number>('app.port') || 3000;
   await app.listen(port);
-  console.log(`🚀 Application running on: http://localhost:${port}/${apiPrefix}`);
+  console.log(`🚀 Application running on: http://localhost:${port}`);
   console.log(`📚 Swagger documentation available at: http://localhost:${port}/api/docs`);
 }
 
