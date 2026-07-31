@@ -6,40 +6,67 @@ export type ProductDocument = Product & Document;
 @Schema({ timestamps: true })
 export class Product {
   @Prop({ required: true, trim: true })
-  title: string;
+  title!: string;
 
   @Prop({ required: true, unique: true, lowercase: true, trim: true, index: true })
-  slug: string;
+  slug!: string;
 
   @Prop({ required: true, unique: true, uppercase: true, trim: true, index: true })
-  sku: string;
+  sku!: string;
 
   @Prop({ required: true, trim: true })
-  description: string;
+  description!: string;
+
+  @Prop({ min: 0 })
+  originalPrice?: number;
 
   @Prop({ required: true, min: 0 })
-  price: number;
+  price!: number;
 
   @Prop({ min: 0 })
   discountPrice?: number;
 
   @Prop({ required: true, min: 0, default: 0 })
-  stock: number;
+  stock!: number;
 
   @Prop({ type: Types.ObjectId, ref: 'Category', required: true, index: true })
-  category: Types.ObjectId;
+  category!: Types.ObjectId;
+
+  @Prop({ trim: true })
+  badge?: string;
+
+  @Prop({ trim: true })
+  certificate?: string;
+
+  @Prop({ trim: true })
+  chakra?: string;
+
+  @Prop({ trim: true })
+  intention?: string;
+
+  @Prop({ trim: true })
+  stone?: string;
+
+  @Prop({ trim: true })
+  subCategory?: string;
 
   @Prop({ type: [String], default: [] })
-  images: string[];
+  benefits!: string[];
 
   @Prop({ type: [String], default: [] })
-  tags: string[];
+  weights!: string[];
+
+  @Prop({ type: [String], default: [] })
+  images!: string[];
+
+  @Prop({ type: [String], default: [] })
+  tags!: string[];
 
   @Prop({ default: false, index: true })
-  isFeatured: boolean;
+  isFeatured!: boolean;
 
   @Prop({ default: true, index: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @Prop({
     type: {
@@ -48,13 +75,16 @@ export class Product {
     },
     default: { average: 0, count: 0 },
   })
-  ratings: {
+  ratings!: {
     average: number;
     count: number;
   };
 
   @Prop({ type: Map, of: String, default: {} })
   attributes?: Map<string, string>;
+
+  @Prop({ type: Map, of: String, default: {} })
+  specifications?: Map<string, string>;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

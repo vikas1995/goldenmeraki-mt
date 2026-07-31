@@ -10,7 +10,7 @@ export class CreateCategoryDto {
   @ApiPropertyOptional({ example: 'BRACELETS', description: 'Short pre-title shown above the main title' })
   @IsString()
   @IsOptional()
-  preTitle?: string;
+  category?: string;
 
   @ApiPropertyOptional({ example: 'Handcrafted premium jewelry collection' })
   @IsString()
