@@ -17,11 +17,6 @@ export class CreateProductDto {
   @IsNotEmpty()
   title!: string;
 
-  @ApiProperty({ example: 'GM-SAR-001' })
-  @IsString()
-  @IsNotEmpty()
-  sku!: string;
-
   @ApiProperty({ example: 'Luxurious handcrafted pure silk sari with intricate gold embroidery.' })
   @IsString()
   @IsNotEmpty()

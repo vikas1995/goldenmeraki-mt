@@ -1,5 +1,4 @@
 import {
-  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -30,16 +29,8 @@ export class ProductsService {
   async create(createProductDto: CreateProductDto): Promise<ProductDocument> {
     const slug = this.slugify(createProductDto.title);
 
-    const existingSku = await this.productModel.findOne({
-      sku: createProductDto.sku.toUpperCase(),
-    });
-    if (existingSku) {
-      throw new ConflictException('Product SKU already exists');
-    }
-
     const product = new this.productModel({
       ...createProductDto,
-      sku: createProductDto.sku.toUpperCase(),
       slug,
     });
 
@@ -140,10 +131,6 @@ export class ProductsService {
     if (updateProductDto.title) {
       updateData.slug = this.slugify(updateProductDto.title);
     }
-    if (updateProductDto.sku) {
-      updateData.sku = updateProductDto.sku.toUpperCase();
-    }
-
     const updatedProduct = await this.productModel
       .findByIdAndUpdate(id, { $set: updateData }, { new: true })
       .populate('category')

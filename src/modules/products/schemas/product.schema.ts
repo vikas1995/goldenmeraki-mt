@@ -11,9 +11,6 @@ export class Product {
   @Prop({ required: true, unique: true, lowercase: true, trim: true, index: true })
   slug!: string;
 
-  @Prop({ required: true, unique: true, uppercase: true, trim: true, index: true })
-  sku!: string;
-
   @Prop({ required: true, trim: true })
   description!: string;
 
