@@ -53,7 +53,6 @@ export class OrdersService {
       orderItems.push({
         product: product._id,
         title: product.title,
-        sku: product.sku,
         quantity: cartItem.quantity,
         price: itemPrice,
         image: product.images && product.images.length > 0 ? product.images[0] : undefined,
