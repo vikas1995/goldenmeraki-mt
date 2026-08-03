@@ -1,0 +1,6 @@
+export enum InventoryStatus {
+  IN_STOCK = 'IN_STOCK',
+  OUT_OF_STOCK = 'OUT_OF_STOCK',
+  COMING_SOON = 'COMING_SOON',
+  DISCONTINUED = 'DISCONTINUED',
+}

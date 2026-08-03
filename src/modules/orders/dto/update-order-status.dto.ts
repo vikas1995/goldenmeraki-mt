@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsOptional } from 'class-validator';
-import { OrderStatus, PaymentStatus } from '../enums/order-status.enum';
+import { OrderStatus, PaymentStatus } from '../schemas/order.schema';
 
 export class UpdateOrderStatusDto {
   @ApiPropertyOptional({ enum: OrderStatus })

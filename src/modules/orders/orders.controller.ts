@@ -1,92 +1,85 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Header,
   Param,
   Patch,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiQuery,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { UserRole } from '../users/enums/user-role.enum';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { QueryOrdersDto } from './dto/query-orders.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
-import { OrderStatus } from './enums/order-status.enum';
 import { OrdersService } from './orders.service';
 
 @ApiTags('Orders')
-@ApiBearerAuth('JWT-auth')
 @Controller('orders')
 @UseGuards(RolesGuard)
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
+  @Public()
   @Post()
-  @ApiOperation({ summary: 'Create new order from user cart' })
-  @ApiResponse({ status: 201, description: 'Order created successfully' })
-  createOrder(
-    @CurrentUser('userId') userId: string,
-    @Body() createOrderDto: CreateOrderDto,
-  ) {
-    return this.ordersService.createOrder(userId, createOrderDto);
-  }
-
-  @Get('my-orders')
-  @ApiOperation({ summary: 'Get logged in user order history' })
-  @ApiResponse({ status: 200, description: 'List of user orders' })
-  findMyOrders(@CurrentUser('userId') userId: string) {
-    return this.ordersService.findMyOrders(userId);
+  @ApiOperation({ summary: 'Create order and generate WhatsApp link' })
+  @ApiResponse({ status: 201, description: 'Order created and WhatsApp URL generated' })
+  create(@Body() createOrderDto: CreateOrderDto) {
+    return this.ordersService.createOrder(createOrderDto);
   }
 
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
   @Get()
-  @ApiOperation({ summary: 'List all orders (Admin only)' })
-  @ApiQuery({ name: 'status', enum: OrderStatus, required: false })
-  @ApiResponse({ status: 200, description: 'List of all system orders' })
-  findAllOrders(@Query('status') status?: OrderStatus) {
-    return this.ordersService.findAllOrders(status);
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Get order details by ID' })
-  @ApiResponse({ status: 200, description: 'Order details' })
-  getOrderById(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: string,
-    @CurrentUser('role') role: string,
-  ) {
-    return this.ordersService.findById(id, userId, role);
+  @ApiOperation({ summary: 'Get paginated list of orders (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Paginated list of orders' })
+  findAll(@Query() queryOrdersDto: QueryOrdersDto) {
+    return this.ordersService.findAll(queryOrdersDto);
   }
 
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Get('export')
+  @Header('Content-Type', 'text/csv')
+  @Header('Content-Disposition', 'attachment; filename="orders.csv"')
+  @ApiOperation({ summary: 'Export orders as CSV (Admin only)' })
+  exportCsv(@Query() queryOrdersDto: QueryOrdersDto) {
+    return this.ordersService.exportCsv(queryOrdersDto);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Get(':id')
+  @ApiOperation({ summary: 'Get order by ID (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Order details' })
+  findById(@Param('id') id: string) {
+    return this.ordersService.findById(id);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
   @Patch(':id/status')
-  @ApiOperation({ summary: 'Update order status or payment status (Admin only)' })
+  @ApiOperation({ summary: 'Update order status / payment status (Admin only)' })
   @ApiResponse({ status: 200, description: 'Order status updated' })
   updateStatus(
     @Param('id') id: string,
-    @Body() updateOrderStatusDto: UpdateOrderStatusDto,
+    @Body() updateDto: UpdateOrderStatusDto,
   ) {
-    return this.ordersService.updateStatus(id, updateOrderStatusDto);
+    return this.ordersService.updateStatus(id, updateDto);
   }
 
-  @Post(':id/cancel')
-  @ApiOperation({ summary: 'Cancel order' })
-  @ApiResponse({ status: 200, description: 'Order cancelled successfully' })
-  cancelOrder(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: string,
-    @CurrentUser('role') role: string,
-  ) {
-    return this.ordersService.cancelOrder(id, userId, role);
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete order by ID (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Order deleted successfully' })
+  remove(@Param('id') id: string) {
+    return this.ordersService.remove(id);
   }
 }

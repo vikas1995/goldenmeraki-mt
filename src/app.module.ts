@@ -8,6 +8,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
+import { AbandonedCartModule } from './modules/abandoned-cart/abandoned-cart.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BlogsModule } from './modules/blogs/blogs.module';
 import { CartModule } from './modules/cart/cart.module';
@@ -15,6 +16,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
 import { ContactModule } from './modules/contact/contact.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NewsletterModule } from './modules/newsletter/newsletter.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { ProductsModule } from './modules/products/products.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
@@ -39,6 +41,8 @@ import { UsersModule } from './modules/users/users.module';
     ProductsModule,
     CartModule,
     OrdersModule,
+    NotificationsModule,
+    AbandonedCartModule,
     ReviewsModule,
     BlogsModule,
     NewsletterModule,

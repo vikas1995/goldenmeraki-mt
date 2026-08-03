@@ -2,6 +2,8 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
@@ -13,10 +15,36 @@ import { UserRole } from './enums/user-role.enum';
 import { User, UserDocument } from './schemas/user.schema';
 
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
+
+  async onModuleInit() {
+    await this.seedDefaultAdmin();
+  }
+
+  private async seedDefaultAdmin() {
+    try {
+      const adminEmail = 'admin@goldenmeraki.com';
+      const existingAdmin = await this.userModel.findOne({ email: adminEmail });
+      if (!existingAdmin) {
+        const hashedPassword = await bcrypt.hash('admin123', 10);
+        await this.userModel.create({
+          name: 'GoldenMeraki Admin',
+          email: adminEmail,
+          password: hashedPassword,
+          role: UserRole.ADMIN,
+          isActive: true,
+        });
+        this.logger.log(`Default Admin created: ${adminEmail} / admin123`);
+      }
+    } catch (err) {
+      this.logger.error('Failed to seed default admin user', err);
+    }
+  }
 
   async create(createUserDto: CreateUserDto): Promise<UserDocument> {
     const { email, password, name, role, phone } = createUserDto;

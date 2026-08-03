@@ -2,14 +2,15 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsBoolean,
+  IsEnum,
   IsMongoId,
   IsNotEmpty,
   IsNumber,
-  IsObject,
   IsOptional,
   IsString,
   Min,
 } from 'class-validator';
+import { InventoryStatus } from '../enums/inventory-status.enum';
 
 export class CreateProductDto {
   @ApiProperty({ example: 'Golden Meraki Silk Sari' })
@@ -44,6 +45,11 @@ export class CreateProductDto {
   @Min(0)
   stock!: number;
 
+  @ApiPropertyOptional({ enum: InventoryStatus, default: InventoryStatus.IN_STOCK })
+  @IsEnum(InventoryStatus)
+  @IsOptional()
+  inventoryStatus?: InventoryStatus;
+
   @ApiProperty({ example: '60d5ec49f1b2c81234567890', description: 'Category ID' })
   @IsMongoId()
   @IsNotEmpty()
@@ -54,59 +60,11 @@ export class CreateProductDto {
   @IsOptional()
   badge?: string;
 
-  @ApiPropertyOptional({ example: 'ISO Certified 100% Natural Crystal' })
-  @IsString()
-  @IsOptional()
-  certificate?: string;
-
-  @ApiPropertyOptional({ example: 'root' })
-  @IsString()
-  @IsOptional()
-  chakra?: string;
-
-  @ApiPropertyOptional({ example: 'health' })
-  @IsString()
-  @IsOptional()
-  intention?: string;
-
-  @ApiPropertyOptional({ example: 'Pearl' })
-  @IsString()
-  @IsOptional()
-  stone?: string;
-
-  @ApiPropertyOptional({ example: 'diwali-special' })
-  @IsString()
-  @IsOptional()
-  subCategory?: string;
-
-  @ApiPropertyOptional({ example: ['Benefits...', 'More benefits...'], type: [String] })
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  benefits?: string[];
-
   @ApiPropertyOptional({ example: ['https://example.com/image1.jpg'], type: [String] })
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
   images?: string[];
-
-  @ApiPropertyOptional({ example: ['silk', 'sari', 'gold'], type: [String] })
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  tags?: string[];
-
-  @ApiPropertyOptional({ example: ['origin', 'authenticity'], type: Object })
-  @IsObject()
-  @IsOptional()
-  specifications?: Record<string, string>;
-
-  @ApiPropertyOptional({ example: ['100g', '200g'], type: [String] })
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  weights?: string[];
 
   @ApiPropertyOptional({ example: true, default: false })
   @IsBoolean()
@@ -117,9 +75,4 @@ export class CreateProductDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
-
-  @ApiPropertyOptional({ example: { color: 'Gold', fabric: 'Pure Silk' } })
-  @IsObject()
-  @IsOptional()
-  attributes?: Record<string, string>;
 }

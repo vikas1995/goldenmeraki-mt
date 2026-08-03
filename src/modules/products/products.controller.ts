@@ -19,7 +19,11 @@ import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { UserRole } from '../users/enums/user-role.enum';
+import { BulkCategoryDto } from './dto/bulk-category.dto';
+import { BulkInventoryDto } from './dto/bulk-inventory.dto';
+import { BulkStatusDto } from './dto/bulk-status.dto';
 import { CreateProductDto } from './dto/create-product.dto';
+import { NotifyProductDto } from './dto/notify-product.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
@@ -71,6 +75,41 @@ export class ProductsController {
   @ApiResponse({ status: 404, description: 'Product not found' })
   findById(@Param('id') id: string) {
     return this.productsService.findById(id);
+  }
+
+  @Public()
+  @Post(':id/notify')
+  @ApiOperation({ summary: 'Submit Notify Me request when product is out of stock' })
+  @ApiResponse({ status: 201, description: 'Notification request submitted successfully' })
+  notifyMe(@Param('id') id: string, @Body() dto: NotifyProductDto) {
+    return this.productsService.notifyMe(id, dto);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Patch('bulk/category')
+  @ApiOperation({ summary: 'Bulk update product category (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Category updated for selected products' })
+  bulkUpdateCategory(@Body() dto: BulkCategoryDto) {
+    return this.productsService.bulkUpdateCategory(dto);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Patch('bulk/status')
+  @ApiOperation({ summary: 'Bulk update product status / feature (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Status updated for selected products' })
+  bulkUpdateStatus(@Body() dto: BulkStatusDto) {
+    return this.productsService.bulkUpdateStatus(dto);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Patch('bulk/inventory')
+  @ApiOperation({ summary: 'Bulk update inventory status / stock quantity (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Inventory updated for selected products' })
+  bulkUpdateInventory(@Body() dto: BulkInventoryDto) {
+    return this.productsService.bulkUpdateInventory(dto);
   }
 
   @Roles(UserRole.ADMIN)

@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { InventoryStatus } from '../enums/inventory-status.enum';
 
 export type ProductDocument = Product & Document;
 
@@ -26,38 +27,22 @@ export class Product {
   @Prop({ required: true, min: 0, default: 0 })
   stock!: number;
 
+  @Prop({
+    required: true,
+    enum: InventoryStatus,
+    default: InventoryStatus.IN_STOCK,
+    index: true,
+  })
+  inventoryStatus!: InventoryStatus;
+
   @Prop({ type: Types.ObjectId, ref: 'Category', required: true, index: true })
   category!: Types.ObjectId;
 
   @Prop({ trim: true })
   badge?: string;
 
-  @Prop({ trim: true })
-  certificate?: string;
-
-  @Prop({ trim: true })
-  chakra?: string;
-
-  @Prop({ trim: true })
-  intention?: string;
-
-  @Prop({ trim: true })
-  stone?: string;
-
-  @Prop({ trim: true })
-  subCategory?: string;
-
-  @Prop({ type: [String], default: [] })
-  benefits!: string[];
-
-  @Prop({ type: [String], default: [] })
-  weights!: string[];
-
   @Prop({ type: [String], default: [] })
   images!: string[];
-
-  @Prop({ type: [String], default: [] })
-  tags!: string[];
 
   @Prop({ default: false, index: true })
   isFeatured!: boolean;
@@ -76,15 +61,9 @@ export class Product {
     average: number;
     count: number;
   };
-
-  @Prop({ type: Map, of: String, default: {} })
-  attributes?: Map<string, string>;
-
-  @Prop({ type: Map, of: String, default: {} })
-  specifications?: Map<string, string>;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
 
-// Text Index for Search
-ProductSchema.index({ title: 'text', description: 'text', tags: 'text' });
+ProductSchema.index({ title: 'text', description: 'text' });
+ProductSchema.index({ category: 1, inventoryStatus: 1, isActive: 1 });
