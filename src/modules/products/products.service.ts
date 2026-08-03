@@ -247,9 +247,10 @@ export class ProductsService {
       productId,
       productTitle: product.title,
       customerName: dto.name,
-      phone: dto.phone,
+      phone: dto.phone || dto.whatsapp,
       whatsapp: dto.whatsapp,
       email: dto.email,
+      requestedSize: dto.requestedSize,
     });
   }
 }

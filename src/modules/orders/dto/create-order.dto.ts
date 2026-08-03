@@ -63,6 +63,11 @@ export class OrderItemDto {
   @IsString()
   @IsOptional()
   image?: string;
+
+  @ApiPropertyOptional({ example: '10 mm' })
+  @IsString()
+  @IsOptional()
+  selectedWidthSize?: string;
 }
 
 export class CreateOrderDto {

@@ -75,4 +75,12 @@ export class CreateProductDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    example: ['8 mm', '10 mm'],
+    description: 'Applicable width sizes for Bracelet products',
+  })
+  @IsArray()
+  @IsOptional()
+  widthSizes?: (string | { size: string; price?: number; stock?: number })[];
 }

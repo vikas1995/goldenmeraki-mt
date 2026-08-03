@@ -20,9 +20,10 @@ export class NotificationsService {
       productId: new Types.ObjectId(createDto.productId),
       productTitle: createDto.productTitle,
       customerName: createDto.customerName,
-      phone: createDto.phone,
+      phone: createDto.phone || createDto.whatsapp,
       whatsapp: createDto.whatsapp,
       email: createDto.email,
+      requestedSize: createDto.requestedSize,
       requestedDate: new Date(),
       status: NotificationStatus.PENDING,
     });
@@ -33,9 +34,10 @@ export class NotificationsService {
     await this.whatsAppService.sendNotifyMeAlertToBusiness({
       productTitle: createDto.productTitle,
       customerName: createDto.customerName,
-      phone: createDto.phone,
+      phone: createDto.phone || createDto.whatsapp,
       whatsapp: createDto.whatsapp,
       email: createDto.email,
+      requestedSize: createDto.requestedSize,
     });
 
     return saved;
@@ -114,12 +116,12 @@ export class NotificationsService {
 
   async exportCsv(queryDto: QueryNotificationsDto): Promise<string> {
     const { notifications } = await this.findAll({ ...queryDto, limit: 10000 });
-    const headers = ['ID', 'Product Title', 'Customer Name', 'Phone', 'WhatsApp', 'Email', 'Status', 'Requested Date'];
+    const headers = ['ID', 'Product Title', 'Requested Width Size', 'Customer Name', 'WhatsApp', 'Email', 'Status', 'Requested Date'];
     const rows = notifications.map((n) => [
       n._id,
       `"${n.productTitle.replace(/"/g, '""')}"`,
+      `"${(n.requestedSize || '').replace(/"/g, '""')}"`,
       `"${n.customerName.replace(/"/g, '""')}"`,
-      n.phone,
       n.whatsapp,
       n.email || '',
       n.status,
@@ -144,6 +146,7 @@ export class NotificationsService {
         productTitle: notif.productTitle,
         customerWhatsApp: notif.whatsapp,
         customerName: notif.customerName,
+        requestedSize: notif.requestedSize,
       });
       notif.status = NotificationStatus.COMPLETED;
       notif.notifiedAt = new Date();

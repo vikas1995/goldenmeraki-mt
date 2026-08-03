@@ -15,14 +15,17 @@ export class ProductNotification {
   @Prop({ required: true, trim: true })
   customerName!: string;
 
-  @Prop({ required: true, trim: true })
-  phone!: string;
+  @Prop({ trim: true })
+  phone?: string;
 
   @Prop({ required: true, trim: true })
   whatsapp!: string;
 
   @Prop({ trim: true })
   email?: string;
+
+  @Prop({ trim: true })
+  requestedSize?: string;
 
   @Prop({ required: true, default: Date.now })
   requestedDate!: Date;

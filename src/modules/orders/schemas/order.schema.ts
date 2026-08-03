@@ -39,6 +39,9 @@ export class OrderItem {
 
   @Prop()
   image?: string;
+
+  @Prop({ trim: true })
+  selectedWidthSize?: string;
 }
 
 const OrderItemSchema = SchemaFactory.createForClass(OrderItem);

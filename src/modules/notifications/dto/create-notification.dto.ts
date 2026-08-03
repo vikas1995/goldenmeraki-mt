@@ -17,10 +17,10 @@ export class CreateNotificationDto {
   @IsNotEmpty()
   customerName!: string;
 
-  @ApiProperty({ example: '+919876543210' })
+  @ApiPropertyOptional({ example: '+919876543210' })
   @IsString()
-  @IsNotEmpty()
-  phone!: string;
+  @IsOptional()
+  phone?: string;
 
   @ApiProperty({ example: '+919876543210' })
   @IsString()
@@ -31,4 +31,9 @@ export class CreateNotificationDto {
   @IsEmail()
   @IsOptional()
   email?: string;
+
+  @ApiPropertyOptional({ example: '10 mm' })
+  @IsString()
+  @IsOptional()
+  requestedSize?: string;
 }

@@ -16,12 +16,15 @@ export class WhatsAppService {
   generateOrderWhatsAppLink(orderData: {
     orderNumber: string;
     customerName: string;
-    items: Array<{ title: string; quantity: number; price: number }>;
+    items: Array<{ title: string; quantity: number; price: number; selectedWidthSize?: string }>;
     totalAmount: number;
     shippingAddress: { street: string; city: string; state: string; pincode: string };
   }): string {
     const itemLines = orderData.items
-      .map((item) => `• ${item.title} (x${item.quantity}) - ₹${item.price * item.quantity}`)
+      .map(
+        (item) =>
+          `• ${item.title}${item.selectedWidthSize ? ` (Width Size: ${item.selectedWidthSize})` : ''} (x${item.quantity}) - ₹${item.price * item.quantity}`,
+      )
       .join('\n');
 
     const message = `🛍️ *NEW ORDER #${orderData.orderNumber}*\n\n` +
@@ -42,15 +45,17 @@ export class WhatsAppService {
   async sendNotifyMeAlertToBusiness(data: {
     productTitle: string;
     customerName: string;
-    phone: string;
+    phone?: string;
     whatsapp: string;
     email?: string;
+    requestedSize?: string;
   }): Promise<boolean> {
     const message = `🔔 *RESTOCK NOTIFICATION REQUEST*\n\n` +
       `*Product:* ${data.productTitle}\n` +
+      (data.requestedSize ? `*Requested Width Size:* ${data.requestedSize}\n` : '') +
       `*Customer:* ${data.customerName}\n` +
-      `*Phone:* ${data.phone}\n` +
       `*WhatsApp:* ${data.whatsapp}\n` +
+      (data.phone ? `*Phone:* ${data.phone}\n` : '') +
       (data.email ? `*Email:* ${data.email}\n` : '') +
       `*Time:* ${new Date().toLocaleString()}\n`;
 
@@ -66,8 +71,10 @@ export class WhatsAppService {
     productTitle: string;
     customerWhatsApp: string;
     customerName: string;
+    requestedSize?: string;
   }): Promise<boolean> {
-    const message = `🎉 *GOOD NEWS!* Hi ${data.customerName}, "${data.productTitle}" is back in stock! Order now on GoldenMeraki.`;
+    const sizeStr = data.requestedSize ? ` (Width Size: ${data.requestedSize})` : '';
+    const message = `🎉 *GOOD NEWS!* Hi ${data.customerName}, "${data.productTitle}"${sizeStr} is back in stock! Order now on GoldenMeraki.`;
     this.logger.log(`[WhatsApp Restock Notification to ${data.customerWhatsApp}]: ${message}`);
     return true;
   }

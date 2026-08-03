@@ -29,6 +29,7 @@ export class OrdersService {
       quantity: item.quantity,
       price: item.price,
       image: item.image,
+      selectedWidthSize: item.selectedWidthSize,
     }));
 
     const whatsappUrl = this.whatsAppService.generateOrderWhatsAppLink({

@@ -50,6 +50,9 @@ export class Product {
   @Prop({ default: true, index: true })
   isActive!: boolean;
 
+  @Prop({ type: Array, default: [] })
+  widthSizes?: (string | { size: string; price?: number; stock?: number })[];
+
   @Prop({
     type: {
       average: { type: Number, default: 0, min: 0, max: 5 },
