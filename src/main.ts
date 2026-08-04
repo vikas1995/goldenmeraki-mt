@@ -53,10 +53,10 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);
 
-  const port = configService.get<number>('app.port') || 3000;
-  await app.listen(port);
-  console.log(`🚀 Application running on: http://localhost:${port}`);
-  console.log(`📚 Swagger documentation available at: http://localhost:${port}/api/docs`);
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : configService.get<number>('app.port') || 3000;
+  await app.listen(port, '0.0.0.0');
+  console.log(`🚀 Application running on port: ${port}`);
+  console.log(`📚 Swagger documentation available at: /api/docs`);
 }
 
 bootstrap();
