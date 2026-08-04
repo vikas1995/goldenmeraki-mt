@@ -10,8 +10,15 @@ export class AppController {
 
   @Public()
   @Get()
-  @ApiOperation({ summary: 'Health check endpoint' })
-  getHello(): string {
-    return this.appService.getHello();
+  @ApiOperation({ summary: 'Root Health check endpoint' })
+  getHealth() {
+    return this.appService.getHealth();
+  }
+
+  @Public()
+  @Get('health')
+  @ApiOperation({ summary: 'Explicit Health check endpoint' })
+  getHealthExplicit() {
+    return this.appService.getHealth();
   }
 }

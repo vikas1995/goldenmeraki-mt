@@ -28,10 +28,11 @@ export class UsersService implements OnModuleInit {
 
   private async seedDefaultAdmin() {
     try {
-      const adminEmail = 'admin@goldenmeraki.com';
+      const adminEmail = (process.env.ADMIN_EMAIL || 'admin@goldenmeraki.com').toLowerCase();
+      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
       const existingAdmin = await this.userModel.findOne({ email: adminEmail });
       if (!existingAdmin) {
-        const hashedPassword = await bcrypt.hash('admin123', 10);
+        const hashedPassword = await bcrypt.hash(adminPassword, 10);
         await this.userModel.create({
           name: 'GoldenMeraki Admin',
           email: adminEmail,
@@ -39,7 +40,7 @@ export class UsersService implements OnModuleInit {
           role: UserRole.ADMIN,
           isActive: true,
         });
-        this.logger.log(`Default Admin created: ${adminEmail} / admin123`);
+        this.logger.log(`Default Admin account initialized: ${adminEmail}`);
       }
     } catch (err) {
       this.logger.error('Failed to seed default admin user', err);
@@ -55,7 +56,7 @@ export class UsersService implements OnModuleInit {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const safeRole = role ?? UserRole.ADMIN;
+    const safeRole = role ?? UserRole.USER;
 
     const newUser = new this.userModel({
       name,

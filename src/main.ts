@@ -13,9 +13,43 @@ async function bootstrap() {
 
   // Security & Middleware
   app.use(helmet());
+  
+  // Disable X-Powered-By header
+  const expressInstance = app.getHttpAdapter().getInstance();
+  if (expressInstance && typeof expressInstance.disable === 'function') {
+    expressInstance.disable('x-powered-by');
+  }
+
+  // Dynamic CORS configuration
+  const allowedOrigins = configService.get<string[]>('app.corsOrigin') || [
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ];
+
   app.enableCors({
-    origin: configService.get<string>('app.corsOrigin') || '*',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, or server-to-server)
+      if (!origin) return callback(null, true);
+
+      const isAllowed = allowedOrigins.some((allowed) => {
+        if (allowed === '*') return true;
+        if (allowed === origin) return true;
+        if (allowed.includes('*')) {
+          const pattern = new RegExp('^' + allowed.replace(/\*/g, '.*') + '$');
+          return pattern.test(origin);
+        }
+        return false;
+      });
+
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   });
 
   // Global Pipes, Filters & Interceptors
@@ -32,31 +66,36 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new TransformInterceptor());
 
-  // Swagger Documentation Setup
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('GoldenMeraki API Specification')
-    .setDescription('Production-ready NestJS Backend for GoldenMeraki E-Commerce')
-    .setVersion('1.0')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'JWT',
-        description: 'Enter JWT token',
-        in: 'header',
-      },
-      'JWT-auth',
-    )
-    .build();
+  // Swagger Documentation Setup (Development / Explicitly Enabled Only)
+  const enableSwagger = configService.get<boolean>('app.enableSwagger');
+  if (enableSwagger) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('GoldenMeraki API Specification')
+      .setDescription('Production-ready NestJS Backend for GoldenMeraki E-Commerce')
+      .setVersion('1.0')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          name: 'JWT',
+          description: 'Enter JWT token',
+          in: 'header',
+        },
+        'JWT-auth',
+      )
+      .build();
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api/docs', app, document);
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : configService.get<number>('app.port') || 3000;
   await app.listen(port, '0.0.0.0');
   console.log(`🚀 Application running on port: ${port}`);
-  console.log(`📚 Swagger documentation available at: /api/docs`);
+  if (enableSwagger) {
+    console.log(`📚 Swagger documentation available at: /api/docs`);
+  }
 }
 
 bootstrap();

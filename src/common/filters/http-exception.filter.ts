@@ -35,7 +35,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
     } else if (exception instanceof Error) {
       this.logger.error(`Unhandled Exception: ${exception.message}`, exception.stack);
-      message = exception.message;
+      message = process.env.NODE_ENV === 'production' ? 'An unexpected internal error occurred' : exception.message;
     }
 
     response.status(status).json({
