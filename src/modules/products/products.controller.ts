@@ -6,9 +6,13 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -131,5 +135,58 @@ export class ProductsController {
   @ApiResponse({ status: 200, description: 'Product deleted successfully' })
   remove(@Param('id') id: string) {
     return this.productsService.remove(id);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Post(':id/images/upload')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload a new product image (Admin only)' })
+  @ApiResponse({ status: 201, description: 'Image uploaded successfully' })
+  uploadImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.productsService.uploadImage(id, file);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Put(':id/images/replace')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Replace an existing product image (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Image replaced successfully' })
+  replaceImage(
+    @Param('id') id: string,
+    @Body('oldImageUrl') oldImageUrl: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.productsService.replaceImage(id, oldImageUrl, file);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Put(':id/images/reorder')
+  @ApiOperation({ summary: 'Reorder product images (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Images reordered successfully' })
+  reorderImages(
+    @Param('id') id: string,
+    @Body('images') images: string[],
+  ) {
+    return this.productsService.reorderImages(id, images);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Delete(':id/images')
+  @ApiOperation({ summary: 'Delete a product image (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Image deleted successfully' })
+  deleteImage(
+    @Param('id') id: string,
+    @Query('imageUrl') queryImageUrl: string,
+    @Body('imageUrl') bodyImageUrl: string,
+  ) {
+    const imageUrl = queryImageUrl || bodyImageUrl;
+    return this.productsService.deleteImage(id, imageUrl);
   }
 }

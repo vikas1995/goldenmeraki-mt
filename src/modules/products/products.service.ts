@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import * as fs from 'fs';
+import * as path from 'path';
 import { NotificationsService } from '../notifications/notifications.service';
 import { BulkCategoryDto } from './dto/bulk-category.dto';
 import { BulkInventoryDto } from './dto/bulk-inventory.dto';
@@ -192,10 +194,30 @@ export class ProductsService {
   }
 
   async remove(id: string): Promise<{ message: string }> {
-    const product = await this.productModel.findByIdAndDelete(id);
+    const product = await this.productModel.findById(id);
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
+
+    // Clean up physical images from disk
+    if (product.images && product.images.length > 0) {
+      const uploadDir = path.join(process.cwd(), 'public_html', 'Images', 'products');
+      for (const imageUrl of product.images) {
+        try {
+          if (imageUrl.startsWith('https://goldenmerakigems.com/Images/products/')) {
+            const filename = path.basename(imageUrl);
+            const filePath = path.join(uploadDir, filename);
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+            }
+          }
+        } catch (err) {
+          console.error(`Failed to delete image file ${imageUrl}:`, err.message);
+        }
+      }
+    }
+
+    await this.productModel.findByIdAndDelete(id);
     return { message: 'Product deleted successfully' };
   }
 
@@ -254,5 +276,190 @@ export class ProductsService {
       email: dto.email,
       requestedSize: dto.requestedSize,
     });
+  }
+
+  // Image Upload APIs
+  async uploadImage(id: string, file: Express.Multer.File): Promise<ProductDocument> {
+    const product = await this.productModel.findById(id);
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      throw new BadRequestException('File size exceeds 10MB limit');
+    }
+
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+    if (!allowedExtensions.includes(ext)) {
+      throw new BadRequestException('Invalid file type. Only jpg, jpeg, png, and webp are allowed.');
+    }
+
+    const slug = product.slug;
+
+    // Find next sequence number
+    let nextSeq = 1;
+    if (product.images && product.images.length > 0) {
+      const seqs = product.images
+        .map((url) => {
+          const filename = path.basename(url);
+          const match = filename.match(new RegExp(`^${slug}-(\\d+)\\.`));
+          return match ? parseInt(match[1], 10) : null;
+        })
+        .filter((val): val is number => val !== null);
+      if (seqs.length > 0) {
+        nextSeq = Math.max(...seqs) + 1;
+      }
+    }
+
+    const filename = `${slug}-${nextSeq}${ext}`;
+    const uploadDir = path.join(process.cwd(), 'public_html', 'Images', 'products');
+
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const filePath = path.join(uploadDir, filename);
+    fs.writeFileSync(filePath, file.buffer);
+
+    const imageUrl = `https://goldenmerakigems.com/Images/products/${filename}`;
+    
+    const updatedProduct = await this.productModel
+      .findByIdAndUpdate(
+        id,
+        { $push: { images: imageUrl } },
+        { new: true }
+      )
+      .populate('category')
+      .exec();
+
+    if (!updatedProduct) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    return updatedProduct;
+  }
+
+  async replaceImage(id: string, oldImageUrl: string, file: Express.Multer.File): Promise<ProductDocument> {
+    const product = await this.productModel.findById(id);
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    if (!product.images || !product.images.includes(oldImageUrl)) {
+      throw new BadRequestException('Original image URL not found in product images.');
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      throw new BadRequestException('File size exceeds 10MB limit');
+    }
+
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+    if (!allowedExtensions.includes(ext)) {
+      throw new BadRequestException('Invalid file type. Only jpg, jpeg, png, and webp are allowed.');
+    }
+
+    const oldFilename = path.basename(oldImageUrl);
+    const slug = product.slug;
+    const match = oldFilename.match(new RegExp(`^${slug}-(\\d+)\\.`));
+    const seq = match ? match[1] : (product.images.indexOf(oldImageUrl) + 1).toString();
+
+    const newFilename = `${slug}-${seq}${ext}`;
+    const uploadDir = path.join(process.cwd(), 'public_html', 'Images', 'products');
+
+    const oldFilePath = path.join(uploadDir, oldFilename);
+    if (fs.existsSync(oldFilePath)) {
+      try {
+        fs.unlinkSync(oldFilePath);
+      } catch (err) {
+        console.error(`Failed to delete old image ${oldFilePath}:`, err.message);
+      }
+    }
+
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    const newFilePath = path.join(uploadDir, newFilename);
+    fs.writeFileSync(newFilePath, file.buffer);
+
+    const newImageUrl = `https://goldenmerakigems.com/Images/products/${newFilename}`;
+
+    const index = product.images.indexOf(oldImageUrl);
+    const updatedImages = [...product.images];
+    updatedImages[index] = newImageUrl;
+
+    const updatedProduct = await this.productModel
+      .findByIdAndUpdate(
+        id,
+        { $set: { images: updatedImages } },
+        { new: true }
+      )
+      .populate('category')
+      .exec();
+
+    if (!updatedProduct) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    return updatedProduct;
+  }
+
+  async reorderImages(id: string, newImagesOrder: string[]): Promise<ProductDocument> {
+    const product = await this.productModel.findById(id);
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    const updatedProduct = await this.productModel
+      .findByIdAndUpdate(
+        id,
+        { $set: { images: newImagesOrder } },
+        { new: true }
+      )
+      .populate('category')
+      .exec();
+
+    if (!updatedProduct) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    return updatedProduct;
+  }
+
+  async deleteImage(id: string, imageUrl: string): Promise<ProductDocument> {
+    const product = await this.productModel.findById(id);
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    if (!product.images || !product.images.includes(imageUrl)) {
+      throw new BadRequestException('Image URL not found in product images.');
+    }
+
+    const filename = path.basename(imageUrl);
+    const filePath = path.join(process.cwd(), 'public_html', 'Images', 'products', filename);
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch (err) {
+        console.error(`Failed to delete physical file ${filePath}:`, err.message);
+      }
+    }
+
+    const updatedProduct = await this.productModel
+      .findByIdAndUpdate(
+        id,
+        { $pull: { images: imageUrl } },
+        { new: true }
+      )
+      .populate('category')
+      .exec();
+
+    if (!updatedProduct) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    return updatedProduct;
   }
 }
