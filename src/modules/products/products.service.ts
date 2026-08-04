@@ -70,8 +70,10 @@ export class ProductsService {
       filter.isActive = true;
     }
 
-    if (category) {
-      filter.category = new Types.ObjectId(category);
+    if (category && category !== 'all') {
+      if (Types.ObjectId.isValid(category)) {
+        filter.category = new Types.ObjectId(category);
+      }
     }
 
     if (inventoryStatus) {
