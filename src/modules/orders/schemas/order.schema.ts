@@ -87,6 +87,7 @@ export class Order {
   orderDate!: Date;
 
   @Prop({
+    type: String,
     required: true,
     enum: OrderStatus,
     default: OrderStatus.PENDING,
@@ -95,6 +96,7 @@ export class Order {
   orderStatus!: OrderStatus;
 
   @Prop({
+    type: String,
     required: true,
     enum: PaymentStatus,
     default: PaymentStatus.PENDING,

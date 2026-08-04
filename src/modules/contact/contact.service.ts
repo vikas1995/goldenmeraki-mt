@@ -31,4 +31,12 @@ export class ContactService {
     }
     return contact;
   }
+
+  async remove(id: string): Promise<{ message: string }> {
+    const message = await this.contactModel.findByIdAndDelete(id);
+    if (!message) {
+      throw new NotFoundException(`Message not found`);
+    }
+    return { message: 'Message deleted successfully' };
+  }
 }

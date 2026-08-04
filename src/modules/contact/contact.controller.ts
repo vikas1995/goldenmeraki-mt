@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -50,5 +51,14 @@ export class ContactController {
   @ApiResponse({ status: 200, description: 'Message marked as read' })
   markAsRead(@Param('id') id: string) {
     return this.contactService.markAsRead(id);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete contact message (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Message deleted successfully' })
+  remove(@Param('id') id: string) {
+    return this.contactService.remove(id);
   }
 }

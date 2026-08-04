@@ -74,6 +74,7 @@ export class AbandonedCart {
   lastActivity!: Date;
 
   @Prop({
+    type: String,
     required: true,
     enum: RecoveryStatus,
     default: RecoveryStatus.PENDING,

@@ -124,4 +124,8 @@ export class UsersService implements OnModuleInit {
     user.addresses = user.addresses.filter((addr: any) => addr._id.toString() !== addressId);
     return user.save();
   }
+
+  async findAll(): Promise<UserDocument[]> {
+    return this.userModel.find().exec();
+  }
 }

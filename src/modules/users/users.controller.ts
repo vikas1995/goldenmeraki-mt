@@ -67,4 +67,21 @@ export class UsersController {
   getUserById(@Param('id') id: string) {
     return this.usersService.findById(id);
   }
+
+  @Get()
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get all users (Admin only)' })
+  @ApiResponse({ status: 200, description: 'List of users' })
+  async findAll() {
+    return this.usersService.findAll();
+  }
+
+  @Patch(':id/status')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Toggle user active status (Admin only)' })
+  @ApiResponse({ status: 200, description: 'User status updated' })
+  async toggleStatus(@Param('id') id: string) {
+    const user = await this.usersService.findById(id);
+    return this.usersService.update(id, { isActive: !user.isActive });
+  }
 }

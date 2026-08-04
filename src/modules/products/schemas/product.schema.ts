@@ -28,6 +28,7 @@ export class Product {
   stock!: number;
 
   @Prop({
+    type: String,
     required: true,
     enum: InventoryStatus,
     default: InventoryStatus.IN_STOCK,

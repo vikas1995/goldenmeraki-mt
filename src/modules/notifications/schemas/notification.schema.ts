@@ -31,6 +31,7 @@ export class ProductNotification {
   requestedDate!: Date;
 
   @Prop({
+    type: String,
     required: true,
     enum: NotificationStatus,
     default: NotificationStatus.PENDING,

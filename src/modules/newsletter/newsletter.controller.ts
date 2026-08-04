@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -36,5 +36,14 @@ export class NewsletterController {
   @ApiResponse({ status: 200, description: 'List of subscribers' })
   findAllSubscribers() {
     return this.newsletterService.findAllSubscribers();
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete subscriber (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Subscriber deleted successfully' })
+  remove(@Param('id') id: string) {
+    return this.newsletterService.remove(id);
   }
 }

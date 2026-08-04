@@ -1,19 +1,32 @@
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ProductsService } from './products.service';
 
 describe('ProductsService', () => {
   let service: ProductsService;
   let productModel: any;
+  let mockNotificationsService: any;
 
   beforeEach(async () => {
-    productModel = {
-      findOne: jest.fn(),
-      findByIdAndUpdate: jest.fn(),
-      findByIdAndDelete: jest.fn(),
-      find: jest.fn(),
-      countDocuments: jest.fn(),
-      create: jest.fn(),
+    const mockSave = jest.fn().mockResolvedValue({
+      populate: jest.fn().mockResolvedValue({}),
+    });
+
+    productModel = jest.fn().mockImplementation(function(dto) {
+      this.save = mockSave;
+      return this;
+    });
+
+    productModel.findOne = jest.fn();
+    productModel.findByIdAndUpdate = jest.fn();
+    productModel.findByIdAndDelete = jest.fn();
+    productModel.find = jest.fn();
+    productModel.countDocuments = jest.fn();
+    productModel.create = jest.fn();
+
+    mockNotificationsService = {
+      triggerAutoNotify: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -23,6 +36,10 @@ describe('ProductsService', () => {
           provide: getModelToken('Product'),
           useValue: productModel,
         },
+        {
+          provide: NotificationsService,
+          useValue: mockNotificationsService,
+        },
       ],
     }).compile();
 
@@ -31,8 +48,6 @@ describe('ProductsService', () => {
 
   it('creates a product without sku', async () => {
     productModel.findOne.mockResolvedValue(null);
-    const save = jest.fn().mockResolvedValue({ populate: jest.fn().mockResolvedValue({}) });
-    productModel.prototype = { save };
 
     const created = await service.create({
       title: 'Test Product',
