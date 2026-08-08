@@ -62,13 +62,16 @@ export class ProductsService {
       isFeatured,
       isActive,
       sort,
+      includeInactive,
+      intention,
+      chakra,
     } = queryDto;
 
     const filter: any = {};
 
     if (isActive !== undefined) {
       filter.isActive = isActive;
-    } else {
+    } else if (includeInactive !== true) {
       filter.isActive = true;
     }
 
@@ -76,6 +79,14 @@ export class ProductsService {
       if (Types.ObjectId.isValid(category)) {
         filter.category = new Types.ObjectId(category);
       }
+    }
+
+    if (intention) {
+      filter.intention = intention;
+    }
+
+    if (chakra) {
+      filter.chakra = chakra;
     }
 
     if (inventoryStatus) {

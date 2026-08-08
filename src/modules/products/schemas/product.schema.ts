@@ -51,6 +51,12 @@ export class Product {
   @Prop({ default: true, index: true })
   isActive!: boolean;
 
+  @Prop({ trim: true, default: '' })
+  intention?: string;
+
+  @Prop({ trim: true, default: '' })
+  chakra?: string;
+
   @Prop({ type: Array, default: [] })
   widthSizes?: (string | { size: string; price?: number; stock?: number })[];
 

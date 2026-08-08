@@ -59,6 +59,22 @@ export class QueryProductsDto {
   @IsOptional()
   isActive?: boolean;
 
+  @ApiPropertyOptional({ description: 'Include inactive / draft products' })
+  @Type(() => Boolean)
+  @IsBoolean()
+  @IsOptional()
+  includeInactive?: boolean;
+
+  @ApiPropertyOptional({ description: 'Filter by intention' })
+  @IsString()
+  @IsOptional()
+  intention?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by chakra' })
+  @IsString()
+  @IsOptional()
+  chakra?: string;
+
   @ApiPropertyOptional({ example: 'newest', enum: ['newest', 'price_asc', 'price_desc', 'rating'] })
   @IsString()
   @IsOptional()

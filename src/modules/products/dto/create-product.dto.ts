@@ -76,6 +76,16 @@ export class CreateProductDto {
   @IsOptional()
   isActive?: boolean;
 
+  @ApiPropertyOptional({ example: 'wealth' })
+  @IsString()
+  @IsOptional()
+  intention?: string;
+
+  @ApiPropertyOptional({ example: 'heart' })
+  @IsString()
+  @IsOptional()
+  chakra?: string;
+
   @ApiPropertyOptional({
     example: ['8 mm', '10 mm'],
     description: 'Applicable width sizes for Bracelet products',
