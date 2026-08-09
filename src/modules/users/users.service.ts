@@ -20,7 +20,7 @@ export class UsersService implements OnModuleInit {
 
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     await this.seedDefaultAdmin();
@@ -28,8 +28,8 @@ export class UsersService implements OnModuleInit {
 
   private async seedDefaultAdmin() {
     try {
-      const adminEmail = (process.env.ADMIN_EMAIL || 'admin@goldenmeraki.com').toLowerCase();
-      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+      const adminEmail = (process.env.ADMIN_EMAIL || 'goldenmerakigems@gmail.com').toLowerCase();
+      const adminPassword = process.env.ADMIN_PASSWORD || 'Goldenmeraki1976';
       const existingAdmin = await this.userModel.findOne({ email: adminEmail });
       if (!existingAdmin) {
         const hashedPassword = await bcrypt.hash(adminPassword, 10);
