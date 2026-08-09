@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as fs from 'fs';
 import * as path from 'path';
+import { validateImageFile } from '../../common/utils/file-validation.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { BulkCategoryDto } from './dto/bulk-category.dto';
 import { BulkInventoryDto } from './dto/bulk-inventory.dto';
@@ -296,15 +297,9 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      throw new BadRequestException('File size exceeds 10MB limit');
-    }
+    validateImageFile(file);
 
     const ext = path.extname(file.originalname).toLowerCase();
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
-    if (!allowedExtensions.includes(ext)) {
-      throw new BadRequestException('Invalid file type. Only jpg, jpeg, png, and webp are allowed.');
-    }
 
     const slug = product.slug;
 
@@ -361,15 +356,9 @@ export class ProductsService {
       throw new BadRequestException('Original image URL not found in product images.');
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      throw new BadRequestException('File size exceeds 10MB limit');
-    }
+    validateImageFile(file);
 
     const ext = path.extname(file.originalname).toLowerCase();
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
-    if (!allowedExtensions.includes(ext)) {
-      throw new BadRequestException('Invalid file type. Only jpg, jpeg, png, and webp are allowed.');
-    }
 
     const oldFilename = path.basename(oldImageUrl);
     const slug = product.slug;

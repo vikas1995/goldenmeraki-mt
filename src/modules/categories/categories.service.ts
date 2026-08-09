@@ -5,6 +5,9 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import * as fs from 'fs';
+import * as path from 'path';
+import { validateImageFile } from '../../common/utils/file-validation.util';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { Category, CategoryDocument } from './schemas/category.schema';
@@ -84,10 +87,106 @@ export class CategoriesService {
   }
 
   async remove(id: string): Promise<{ message: string }> {
-    const category = await this.categoryModel.findByIdAndDelete(id);
+    const category = await this.categoryModel.findById(id);
     if (!category) {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }
+
+    if (category.image && category.image.startsWith('https://goldenmerakigems.com/Images/categories/')) {
+      try {
+        const filename = path.basename(category.image);
+        const filePath = path.join(process.cwd(), 'public_html', 'Images', 'categories', filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (err) {
+        console.error(`Failed to delete category image file ${category.image}:`, err.message);
+      }
+    }
+
+    await this.categoryModel.findByIdAndDelete(id);
     return { message: 'Category deleted successfully' };
+  }
+
+  async uploadImage(id: string, file: Express.Multer.File): Promise<CategoryDocument> {
+    const category = await this.categoryModel.findById(id);
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
+
+    validateImageFile(file);
+
+    const ext = path.extname(file.originalname).toLowerCase();
+    const slug = category.slug;
+    const filename = `${slug}${ext}`;
+
+    const uploadDir = path.join(process.cwd(), 'public_html', 'Images', 'categories');
+
+    // Clean up old image if different extension or overwrite if same
+    if (category.image && category.image.startsWith('https://goldenmerakigems.com/Images/categories/')) {
+      const oldFilename = path.basename(category.image);
+      if (oldFilename !== filename) {
+        const oldFilePath = path.join(uploadDir, oldFilename);
+        if (fs.existsSync(oldFilePath)) {
+          try {
+            fs.unlinkSync(oldFilePath);
+          } catch (err) {
+            console.error(`Failed to delete old category image ${oldFilePath}:`, err.message);
+          }
+        }
+      }
+    }
+
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const filePath = path.join(uploadDir, filename);
+    fs.writeFileSync(filePath, file.buffer);
+
+    const imageUrl = `https://goldenmerakigems.com/Images/categories/${filename}`;
+
+    const updatedCategory = await this.categoryModel.findByIdAndUpdate(
+      id,
+      { $set: { image: imageUrl } },
+      { new: true }
+    );
+
+    if (!updatedCategory) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
+
+    return updatedCategory;
+  }
+
+  async deleteImage(id: string): Promise<CategoryDocument> {
+    const category = await this.categoryModel.findById(id);
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
+
+    if (category.image && category.image.startsWith('https://goldenmerakigems.com/Images/categories/')) {
+      const filename = path.basename(category.image);
+      const filePath = path.join(process.cwd(), 'public_html', 'Images', 'categories', filename);
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (err) {
+          console.error(`Failed to delete physical file ${filePath}:`, err.message);
+        }
+      }
+    }
+
+    const updatedCategory = await this.categoryModel.findByIdAndUpdate(
+      id,
+      { $unset: { image: 1 } },
+      { new: true }
+    );
+
+    if (!updatedCategory) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
+
+    return updatedCategory;
   }
 }

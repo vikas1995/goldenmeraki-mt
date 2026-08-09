@@ -8,7 +8,10 @@ import {
   Post,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -85,5 +88,27 @@ export class CategoriesController {
   @ApiResponse({ status: 200, description: 'Category deleted' })
   remove(@Param('id') id: string) {
     return this.categoriesService.remove(id);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Post(':id/image/upload')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload or replace category image (Admin only)' })
+  @ApiResponse({ status: 201, description: 'Image uploaded successfully' })
+  uploadImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.categoriesService.uploadImage(id, file);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Delete(':id/image')
+  @ApiOperation({ summary: 'Delete category image (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Image deleted successfully' })
+  deleteImage(@Param('id') id: string) {
+    return this.categoriesService.deleteImage(id);
   }
 }
