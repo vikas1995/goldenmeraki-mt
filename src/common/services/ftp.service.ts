@@ -25,14 +25,14 @@ export class FtpService {
     client.ftp.verbose = false;
 
     try {
-      this.logger.log(`Connecting to FTP host ${host}...`);
+      const maskedUser = user.length > 4 ? user.substring(0, 4) + '***' : '***';
+      this.logger.log(`Connecting to FTP host ${host} as user ${maskedUser}...`);
       await client.access({
         host,
         user,
         password,
         port,
         secure,
-        // Hostinger FTP often requires passive mode or secure settings
       });
 
       this.logger.log(`Connected to FTP! Uploading to path: ${remoteFilePath}`);
