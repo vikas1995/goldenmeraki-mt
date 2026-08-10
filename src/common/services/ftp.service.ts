@@ -37,15 +37,18 @@ export class FtpService {
 
       this.logger.log(`Connected to FTP! Uploading to path: ${remoteFilePath}`);
       
-      // Ensure target directory exists
+      // Ensure target directory exists and navigate into it
       const lastSlash = remoteFilePath.lastIndexOf('/');
+      let filename = remoteFilePath;
       if (lastSlash !== -1) {
         const remoteDir = remoteFilePath.substring(0, lastSlash);
+        filename = remoteFilePath.substring(lastSlash + 1);
         await client.ensureDir(remoteDir);
+        // ensureDir changes cwd to that directory, so upload using just the filename
       }
       
       const stream = Readable.from(fileBuffer);
-      await client.uploadFrom(stream, remoteFilePath);
+      await client.uploadFrom(stream, filename);
       
       this.logger.log(`Successfully uploaded file via FTP to ${remoteFilePath}`);
       return true;
