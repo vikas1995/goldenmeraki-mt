@@ -78,7 +78,14 @@ export class ProductsService {
 
     if (category && category !== 'all') {
       if (Types.ObjectId.isValid(category)) {
-        filter.category = new Types.ObjectId(category);
+        filter.category = {
+          $in: [
+            new Types.ObjectId(category),
+            category
+          ]
+        };
+      } else {
+        filter.category = category;
       }
     }
 
