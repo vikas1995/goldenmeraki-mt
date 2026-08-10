@@ -102,7 +102,7 @@ export class CategoriesService {
           fs.unlinkSync(filePath);
         }
         // FTP Delete
-        await this.ftpService.deleteFile(`public_html/goldenmerakigems-images/categories/${filename}`);
+        await this.ftpService.deleteFile(`goldenmerakigems-images/categories/${filename}`);
       } catch (err) {
         console.error(`Failed to delete category image file ${category.image}:`, err.message);
       }
@@ -140,7 +140,7 @@ export class CategoriesService {
         }
         // FTP Delete old image
         try {
-          await this.ftpService.deleteFile(`public_html/goldenmerakigems-images/categories/${oldFilename}`);
+          await this.ftpService.deleteFile(`goldenmerakigems-images/categories/${oldFilename}`);
         } catch (err) {
           console.error(`Failed to delete old FTP category image:`, err.message);
         }
@@ -156,7 +156,7 @@ export class CategoriesService {
 
     // FTP Upload new image
     try {
-      await this.ftpService.uploadFile(file.buffer, `public_html/goldenmerakigems-images/categories/${filename}`);
+      await this.ftpService.uploadFile(file.buffer, `goldenmerakigems-images/categories/${filename}`);
     } catch (err) {
       console.error(`Failed to upload category image via FTP:`, err.message);
     }
@@ -194,7 +194,7 @@ export class CategoriesService {
       }
       // FTP Delete image
       try {
-        await this.ftpService.deleteFile(`public_html/goldenmerakigems-images/categories/${filename}`);
+        await this.ftpService.deleteFile(`goldenmerakigems-images/categories/${filename}`);
       } catch (err) {
         console.error(`Failed to delete FTP category image:`, err.message);
       }
