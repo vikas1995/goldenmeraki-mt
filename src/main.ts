@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -30,6 +30,7 @@ async function bootstrap() {
   // Dynamic CORS configuration
   const allowedOrigins = configService.get<string[]>('app.corsOrigin') || [
     'http://localhost:5173',
+    'http://localhost:4173',
     'http://localhost:3000',
   ];
 
@@ -51,7 +52,8 @@ async function bootstrap() {
       if (isAllowed) {
         callback(null, true);
       } else {
-        callback(new Error(`Origin ${origin} not allowed by CORS`));
+        Logger.warn(`Origin ${origin} not allowed by CORS`, 'CORS');
+        callback(null, false);
       }
     },
     credentials: true,
