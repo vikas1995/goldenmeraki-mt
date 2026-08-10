@@ -326,7 +326,7 @@ export class ProductsService {
     }
 
     const filename = `${slug}-${nextSeq}${ext}`;
-    const uploadDir = path.join(process.cwd(), 'public_html', 'Images', 'products');
+    const uploadDir = path.join(process.cwd(), 'public_html', 'goldenmerakigems-images', 'products');
 
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
@@ -335,7 +335,7 @@ export class ProductsService {
     const filePath = path.join(uploadDir, filename);
     fs.writeFileSync(filePath, file.buffer);
 
-    const imageUrl = `https://goldenmerakigems.com/Images/products/${filename}`;
+    const imageUrl = `https://goldenmerakigems.com/goldenmerakigems-images/products/${filename}`;
     
     const updatedProduct = await this.productModel
       .findByIdAndUpdate(
@@ -373,7 +373,7 @@ export class ProductsService {
     const seq = match ? match[1] : (product.images.indexOf(oldImageUrl) + 1).toString();
 
     const newFilename = `${slug}-${seq}${ext}`;
-    const uploadDir = path.join(process.cwd(), 'public_html', 'Images', 'products');
+    const uploadDir = path.join(process.cwd(), 'public_html', 'goldenmerakigems-images', 'products');
 
     const oldFilePath = path.join(uploadDir, oldFilename);
     if (fs.existsSync(oldFilePath)) {
@@ -390,7 +390,7 @@ export class ProductsService {
     const newFilePath = path.join(uploadDir, newFilename);
     fs.writeFileSync(newFilePath, file.buffer);
 
-    const newImageUrl = `https://goldenmerakigems.com/Images/products/${newFilename}`;
+    const newImageUrl = `https://goldenmerakigems.com/goldenmerakigems-images/products/${newFilename}`;
 
     const index = product.images.indexOf(oldImageUrl);
     const updatedImages = [...product.images];
@@ -445,12 +445,21 @@ export class ProductsService {
     }
 
     const filename = path.basename(imageUrl);
-    const filePath = path.join(process.cwd(), 'public_html', 'Images', 'products', filename);
+    const filePath = path.join(process.cwd(), 'public_html', 'goldenmerakigems-images', 'products', filename);
+    const oldFilePath = path.join(process.cwd(), 'public_html', 'Images', 'products', filename);
+    
+    // Try deleting from the new path first, then the old path as fallback
     if (fs.existsSync(filePath)) {
       try {
         fs.unlinkSync(filePath);
       } catch (err) {
         console.error(`Failed to delete physical file ${filePath}:`, err.message);
+      }
+    } else if (fs.existsSync(oldFilePath)) {
+      try {
+        fs.unlinkSync(oldFilePath);
+      } catch (err) {
+        console.error(`Failed to delete physical file ${oldFilePath}:`, err.message);
       }
     }
 

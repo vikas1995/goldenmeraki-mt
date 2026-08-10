@@ -92,10 +92,10 @@ export class CategoriesService {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }
 
-    if (category.image && category.image.startsWith('https://goldenmerakigems.com/Images/categories/')) {
+    if (category.image && (category.image.startsWith('https://goldenmerakigems.com/Images/categories/') || category.image.startsWith('https://goldenmerakigems.com/goldenmerakigems-images/category/'))) {
       try {
         const filename = path.basename(category.image);
-        const filePath = path.join(process.cwd(), 'public_html', 'Images', 'categories', filename);
+        const filePath = path.join(process.cwd(), 'public_html', 'goldenmerakigems-images', 'category', filename);
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }
@@ -120,10 +120,10 @@ export class CategoriesService {
     const slug = category.slug;
     const filename = `${slug}${ext}`;
 
-    const uploadDir = path.join(process.cwd(), 'public_html', 'Images', 'categories');
+    const uploadDir = path.join(process.cwd(), 'public_html', 'goldenmerakigems-images', 'category');
 
     // Clean up old image if different extension or overwrite if same
-    if (category.image && category.image.startsWith('https://goldenmerakigems.com/Images/categories/')) {
+    if (category.image && (category.image.startsWith('https://goldenmerakigems.com/Images/categories/') || category.image.startsWith('https://goldenmerakigems.com/goldenmerakigems-images/category/'))) {
       const oldFilename = path.basename(category.image);
       if (oldFilename !== filename) {
         const oldFilePath = path.join(uploadDir, oldFilename);
@@ -144,7 +144,7 @@ export class CategoriesService {
     const filePath = path.join(uploadDir, filename);
     fs.writeFileSync(filePath, file.buffer);
 
-    const imageUrl = `https://goldenmerakigems.com/Images/categories/${filename}`;
+    const imageUrl = `https://goldenmerakigems.com/goldenmerakigems-images/category/${filename}`;
 
     const updatedCategory = await this.categoryModel.findByIdAndUpdate(
       id,
@@ -165,9 +165,9 @@ export class CategoriesService {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }
 
-    if (category.image && category.image.startsWith('https://goldenmerakigems.com/Images/categories/')) {
+    if (category.image && (category.image.startsWith('https://goldenmerakigems.com/Images/categories/') || category.image.startsWith('https://goldenmerakigems.com/goldenmerakigems-images/category/'))) {
       const filename = path.basename(category.image);
-      const filePath = path.join(process.cwd(), 'public_html', 'Images', 'categories', filename);
+      const filePath = path.join(process.cwd(), 'public_html', 'goldenmerakigems-images', 'category', filename);
       if (fs.existsSync(filePath)) {
         try {
           fs.unlinkSync(filePath);
