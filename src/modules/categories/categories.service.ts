@@ -11,12 +11,14 @@ import { validateImageFile } from '../../common/utils/file-validation.util';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { Category, CategoryDocument } from './schemas/category.schema';
+import { FtpService } from '../../common/services/ftp.service';
 
 @Injectable()
 export class CategoriesService {
   constructor(
     @InjectModel(Category.name)
     private readonly categoryModel: Model<CategoryDocument>,
+    private readonly ftpService: FtpService,
   ) {}
 
   private slugify(text: string): string {
@@ -99,6 +101,8 @@ export class CategoriesService {
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }
+        // FTP Delete
+        await this.ftpService.deleteFile(`public_html/goldenmerakigems-images/categories/${filename}`);
       } catch (err) {
         console.error(`Failed to delete category image file ${category.image}:`, err.message);
       }
@@ -134,6 +138,12 @@ export class CategoriesService {
             console.error(`Failed to delete old category image ${oldFilePath}:`, err.message);
           }
         }
+        // FTP Delete old image
+        try {
+          await this.ftpService.deleteFile(`public_html/goldenmerakigems-images/categories/${oldFilename}`);
+        } catch (err) {
+          console.error(`Failed to delete old FTP category image:`, err.message);
+        }
       }
     }
 
@@ -143,6 +153,13 @@ export class CategoriesService {
 
     const filePath = path.join(uploadDir, filename);
     fs.writeFileSync(filePath, file.buffer);
+
+    // FTP Upload new image
+    try {
+      await this.ftpService.uploadFile(file.buffer, `public_html/goldenmerakigems-images/categories/${filename}`);
+    } catch (err) {
+      console.error(`Failed to upload category image via FTP:`, err.message);
+    }
 
     const imageUrl = `https://goldenmerakigems.com/goldenmerakigems-images/categories/${filename}`;
 
@@ -174,6 +191,12 @@ export class CategoriesService {
         } catch (err) {
           console.error(`Failed to delete physical file ${filePath}:`, err.message);
         }
+      }
+      // FTP Delete image
+      try {
+        await this.ftpService.deleteFile(`public_html/goldenmerakigems-images/categories/${filename}`);
+      } catch (err) {
+        console.error(`Failed to delete FTP category image:`, err.message);
       }
     }
 

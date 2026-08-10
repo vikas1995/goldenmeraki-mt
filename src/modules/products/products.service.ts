@@ -14,6 +14,7 @@ import { QueryProductsDto } from './dto/query-products.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { InventoryStatus } from './enums/inventory-status.enum';
 import { Product, ProductDocument } from './schemas/product.schema';
+import { FtpService } from '../../common/services/ftp.service';
 
 @Injectable()
 export class ProductsService {
@@ -21,6 +22,7 @@ export class ProductsService {
     @InjectModel(Product.name)
     private readonly productModel: Model<ProductDocument>,
     private readonly notificationsService: NotificationsService,
+    private readonly ftpService: FtpService,
   ) {}
 
   private slugify(text: string): string {
@@ -218,18 +220,22 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    // Clean up physical images from disk
+    // Clean up physical images from disk and FTP
     if (product.images && product.images.length > 0) {
-      const uploadDir = path.join(process.cwd(), 'public_html', 'Images', 'products');
+      const uploadDir = path.join(process.cwd(), 'public_html', 'goldenmerakigems-images', 'products');
+      const oldUploadDir = path.join(process.cwd(), 'public_html', 'Images', 'products');
       for (const imageUrl of product.images) {
         try {
-          if (imageUrl.startsWith('https://goldenmerakigems.com/Images/products/')) {
-            const filename = path.basename(imageUrl);
-            const filePath = path.join(uploadDir, filename);
-            if (fs.existsSync(filePath)) {
-              fs.unlinkSync(filePath);
-            }
+          const filename = path.basename(imageUrl);
+          const filePath = path.join(uploadDir, filename);
+          const oldFilePath = path.join(oldUploadDir, filename);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          } else if (fs.existsSync(oldFilePath)) {
+            fs.unlinkSync(oldFilePath);
           }
+          // FTP Delete
+          await this.ftpService.deleteFile(`public_html/goldenmerakigems-images/products/${filename}`);
         } catch (err) {
           console.error(`Failed to delete image file ${imageUrl}:`, err.message);
         }
@@ -335,6 +341,13 @@ export class ProductsService {
     const filePath = path.join(uploadDir, filename);
     fs.writeFileSync(filePath, file.buffer);
 
+    // FTP Upload new image
+    try {
+      await this.ftpService.uploadFile(file.buffer, `public_html/goldenmerakigems-images/products/${filename}`);
+    } catch (err) {
+      console.error(`Failed to upload product image via FTP:`, err.message);
+    }
+
     const imageUrl = `https://goldenmerakigems.com/goldenmerakigems-images/products/${filename}`;
     
     const updatedProduct = await this.productModel
@@ -376,12 +389,26 @@ export class ProductsService {
     const uploadDir = path.join(process.cwd(), 'public_html', 'goldenmerakigems-images', 'products');
 
     const oldFilePath = path.join(uploadDir, oldFilename);
+    const oldOldFilePath = path.join(process.cwd(), 'public_html', 'Images', 'products', oldFilename);
     if (fs.existsSync(oldFilePath)) {
       try {
         fs.unlinkSync(oldFilePath);
       } catch (err) {
         console.error(`Failed to delete old image ${oldFilePath}:`, err.message);
       }
+    } else if (fs.existsSync(oldOldFilePath)) {
+      try {
+        fs.unlinkSync(oldOldFilePath);
+      } catch (err) {
+        console.error(`Failed to delete old image ${oldOldFilePath}:`, err.message);
+      }
+    }
+
+    // FTP Delete old image
+    try {
+      await this.ftpService.deleteFile(`public_html/goldenmerakigems-images/products/${oldFilename}`);
+    } catch (err) {
+      console.error(`Failed to delete old FTP product image:`, err.message);
     }
 
     if (!fs.existsSync(uploadDir)) {
@@ -389,6 +416,13 @@ export class ProductsService {
     }
     const newFilePath = path.join(uploadDir, newFilename);
     fs.writeFileSync(newFilePath, file.buffer);
+
+    // FTP Upload new image
+    try {
+      await this.ftpService.uploadFile(file.buffer, `public_html/goldenmerakigems-images/products/${newFilename}`);
+    } catch (err) {
+      console.error(`Failed to upload replaced product image via FTP:`, err.message);
+    }
 
     const newImageUrl = `https://goldenmerakigems.com/goldenmerakigems-images/products/${newFilename}`;
 
@@ -461,6 +495,13 @@ export class ProductsService {
       } catch (err) {
         console.error(`Failed to delete physical file ${oldFilePath}:`, err.message);
       }
+    }
+
+    // FTP Delete image
+    try {
+      await this.ftpService.deleteFile(`public_html/goldenmerakigems-images/products/${filename}`);
+    } catch (err) {
+      console.error(`Failed to delete FTP product image:`, err.message);
     }
 
     const updatedProduct = await this.productModel

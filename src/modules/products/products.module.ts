@@ -4,6 +4,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { ProductsController } from './products.controller';
 import { ProductsService } from './products.service';
 import { Product, ProductSchema } from './schemas/product.schema';
+import { FtpService } from '../../common/services/ftp.service';
 
 @Module({
   imports: [
@@ -11,7 +12,7 @@ import { Product, ProductSchema } from './schemas/product.schema';
     NotificationsModule,
   ],
   controllers: [ProductsController],
-  providers: [ProductsService],
+  providers: [ProductsService, FtpService],
   exports: [ProductsService, MongooseModule],
 })
 export class ProductsModule {}
