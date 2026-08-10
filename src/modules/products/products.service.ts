@@ -343,7 +343,7 @@ export class ProductsService {
 
     // FTP Upload new image
     try {
-      await this.ftpService.uploadFile(file.buffer, `public_html/goldenmerakigems-images/products/${filename}`);
+      await this.ftpService.uploadFile(file.buffer, `goldenmerakigems-images/products/${filename}`);
     } catch (err) {
       console.error(`Failed to upload product image via FTP:`, err.message);
     }
@@ -406,7 +406,7 @@ export class ProductsService {
 
     // FTP Delete old image
     try {
-      await this.ftpService.deleteFile(`public_html/goldenmerakigems-images/products/${oldFilename}`);
+      await this.ftpService.deleteFile(`goldenmerakigems-images/products/${oldFilename}`);
     } catch (err) {
       console.error(`Failed to delete old FTP product image:`, err.message);
     }
@@ -419,7 +419,7 @@ export class ProductsService {
 
     // FTP Upload new image
     try {
-      await this.ftpService.uploadFile(file.buffer, `public_html/goldenmerakigems-images/products/${newFilename}`);
+      await this.ftpService.uploadFile(file.buffer, `goldenmerakigems-images/products/${newFilename}`);
     } catch (err) {
       console.error(`Failed to upload replaced product image via FTP:`, err.message);
     }
@@ -499,7 +499,7 @@ export class ProductsService {
 
     // FTP Delete image
     try {
-      await this.ftpService.deleteFile(`public_html/goldenmerakigems-images/products/${filename}`);
+      await this.ftpService.deleteFile(`goldenmerakigems-images/products/${filename}`);
     } catch (err) {
       console.error(`Failed to delete FTP product image:`, err.message);
     }
