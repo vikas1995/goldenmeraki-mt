@@ -15,6 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiConsumes,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -137,11 +138,16 @@ export class ProductsController {
     return this.productsService.remove(id);
   }
 
+  // ============================================================
+  // Image Upload APIs
+  // ============================================================
+
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth('JWT-auth')
   @Post(':id/images/upload')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Upload a new product image (Admin only)' })
+  @ApiConsumes('multipart/form-data')
   @ApiResponse({ status: 201, description: 'Image uploaded successfully' })
   uploadImage(
     @Param('id') id: string,
@@ -155,6 +161,7 @@ export class ProductsController {
   @Put(':id/images/replace')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Replace an existing product image (Admin only)' })
+  @ApiConsumes('multipart/form-data')
   @ApiResponse({ status: 200, description: 'Image replaced successfully' })
   replaceImage(
     @Param('id') id: string,
@@ -188,5 +195,32 @@ export class ProductsController {
   ) {
     const imageUrl = queryImageUrl || bodyImageUrl;
     return this.productsService.deleteImage(id, imageUrl);
+  }
+
+  // ============================================================
+  // Video Upload / Delete APIs
+  // ============================================================
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Post(':id/video/upload')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload or replace a product video (Admin only). Max 50 MB. MP4/WebM only.' })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 201, description: 'Video uploaded successfully' })
+  uploadVideo(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.productsService.uploadVideo(id, file);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Delete(':id/video')
+  @ApiOperation({ summary: 'Delete a product video (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Video deleted successfully' })
+  deleteVideo(@Param('id') id: string) {
+    return this.productsService.deleteVideo(id);
   }
 }

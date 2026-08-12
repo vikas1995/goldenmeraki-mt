@@ -4,6 +4,33 @@ import { InventoryStatus } from '../enums/inventory-status.enum';
 
 export type ProductDocument = Product & Document;
 
+/**
+ * Sub-schema for size variants (e.g. 8mm, 10mm bracelets).
+ * Each size carries its own pricing and stock.
+ */
+@Schema({ _id: false })
+export class ProductSize {
+  @Prop({ required: true, trim: true })
+  size!: string;
+
+  @Prop({ required: true, min: 0 })
+  price!: number;
+
+  @Prop({ min: 0 })
+  originalPrice?: number;
+
+  @Prop({ min: 0 })
+  discountPrice?: number;
+
+  @Prop({ required: true, min: 0, default: 0 })
+  stock!: number;
+
+  @Prop({ default: true })
+  isActive!: boolean;
+}
+
+export const ProductSizeSchema = SchemaFactory.createForClass(ProductSize);
+
 @Schema({ timestamps: true })
 export class Product {
   @Prop({ required: true, trim: true })
@@ -57,8 +84,25 @@ export class Product {
   @Prop({ trim: true, default: '' })
   chakra?: string;
 
+  /**
+   * Structured size variants — the source of truth for sized products.
+   * Each entry has its own price, originalPrice, discountPrice, stock, isActive.
+   */
+  @Prop({ type: [ProductSizeSchema], default: [] })
+  sizes?: ProductSize[];
+
+  /**
+   * @deprecated — Legacy field kept for backward compatibility with existing DB documents.
+   * New code should use `sizes` instead.
+   */
   @Prop({ type: Array, default: [] })
   widthSizes?: (string | { size: string; price?: number; stock?: number })[];
+
+  /**
+   * Optional product video URL (public Hostinger URL).
+   */
+  @Prop({ trim: true })
+  video?: string;
 
   @Prop({
     type: {

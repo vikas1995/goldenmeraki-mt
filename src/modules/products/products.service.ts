@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as fs from 'fs';
 import * as path from 'path';
-import { validateImageFile } from '../../common/utils/file-validation.util';
+import { validateImageFile, validateVideoFile } from '../../common/utils/file-validation.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { BulkCategoryDto } from './dto/bulk-category.dto';
 import { BulkInventoryDto } from './dto/bulk-inventory.dto';
@@ -35,17 +35,56 @@ export class ProductsService {
       .replace(/\-\-+/g, '-');
   }
 
+  /**
+   * Migrate legacy widthSizes to the new sizes format on read.
+   * If a product has widthSizes but no sizes, auto-map them.
+   */
+  private migrateLegacySizes(product: any): void {
+    if (product && (!product.sizes || product.sizes.length === 0) && product.widthSizes && product.widthSizes.length > 0) {
+      product.sizes = product.widthSizes.map((ws: any) => {
+        if (typeof ws === 'string') {
+          return {
+            size: ws,
+            price: product.price || 0,
+            originalPrice: product.originalPrice,
+            stock: product.stock || 0,
+            isActive: true,
+          };
+        }
+        return {
+          size: ws.size,
+          price: ws.price ?? product.price ?? 0,
+          originalPrice: ws.originalPrice ?? product.originalPrice,
+          discountPrice: ws.discountPrice,
+          stock: ws.stock ?? product.stock ?? 0,
+          isActive: ws.isActive !== false,
+        };
+      });
+    }
+  }
+
   async create(createProductDto: CreateProductDto): Promise<ProductDocument> {
     const slug = this.slugify(createProductDto.title);
 
-    // Auto set inventory status if stock <= 0
+    // Normalize sizes — ensure isActive defaults to true
+    const sizes = (createProductDto.sizes || []).map((s) => ({
+      ...s,
+      isActive: s.isActive !== false,
+    }));
+
+    // Auto set inventory status
     let inventoryStatus = createProductDto.inventoryStatus || InventoryStatus.IN_STOCK;
-    if (createProductDto.stock <= 0 && inventoryStatus === InventoryStatus.IN_STOCK) {
+    if (sizes.length > 0) {
+      // For sized products, check if any active size has stock
+      const hasActiveStock = sizes.some((s) => s.isActive && s.stock > 0);
+      inventoryStatus = hasActiveStock ? InventoryStatus.IN_STOCK : InventoryStatus.OUT_OF_STOCK;
+    } else if (createProductDto.stock <= 0 && inventoryStatus === InventoryStatus.IN_STOCK) {
       inventoryStatus = InventoryStatus.OUT_OF_STOCK;
     }
 
     const product = new this.productModel({
       ...createProductDto,
+      sizes,
       inventoryStatus,
       slug,
     });
@@ -132,9 +171,15 @@ export class ProductsService {
         .sort(sortOptions)
         .skip(skip)
         .limit(limit)
+        .lean()
         .exec(),
       this.productModel.countDocuments(filter),
     ]);
+
+    // Migrate legacy widthSizes for each product on read
+    for (const product of products) {
+      this.migrateLegacySizes(product);
+    }
 
     return {
       products,
@@ -147,30 +192,40 @@ export class ProductsService {
     };
   }
 
-  async findFeatured(): Promise<ProductDocument[]> {
-    return this.productModel
+  async findFeatured(): Promise<any[]> {
+    const products = await this.productModel
       .find({ isFeatured: true, isActive: true })
       .populate('category')
       .limit(10)
+      .lean()
       .exec();
+
+    for (const product of products) {
+      this.migrateLegacySizes(product);
+    }
+
+    return products;
   }
 
-  async findBySlug(slug: string): Promise<ProductDocument> {
+  async findBySlug(slug: string): Promise<any> {
     const product = await this.productModel
       .findOne({ slug, isActive: true })
       .populate('category')
+      .lean()
       .exec();
     if (!product) {
       throw new NotFoundException(`Product with slug "${slug}" not found`);
     }
+    this.migrateLegacySizes(product);
     return product;
   }
 
-  async findById(id: string): Promise<ProductDocument> {
-    const product = await this.productModel.findById(id).populate('category').exec();
+  async findById(id: string): Promise<any> {
+    const product = await this.productModel.findById(id).populate('category').lean().exec();
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
+    this.migrateLegacySizes(product);
     return product;
   }
 
@@ -185,8 +240,20 @@ export class ProductsService {
       updateData.slug = this.slugify(updateProductDto.title);
     }
 
-    // Auto adjust inventory status based on stock if updated
-    if (updateProductDto.stock !== undefined && updateProductDto.inventoryStatus === undefined) {
+    // Normalize sizes if provided
+    if (updateData.sizes && Array.isArray(updateData.sizes)) {
+      updateData.sizes = updateData.sizes.map((s: any) => ({
+        ...s,
+        isActive: s.isActive !== false,
+      }));
+
+      // Recompute inventory status based on sizes
+      const hasActiveStock = updateData.sizes.some((s: any) => s.isActive && s.stock > 0);
+      if (updateProductDto.inventoryStatus === undefined) {
+        updateData.inventoryStatus = hasActiveStock ? InventoryStatus.IN_STOCK : InventoryStatus.OUT_OF_STOCK;
+      }
+    } else if (updateProductDto.stock !== undefined && updateProductDto.inventoryStatus === undefined) {
+      // Auto adjust inventory status based on stock if updated (non-sized products)
       if (updateProductDto.stock > 0 && existingProduct.inventoryStatus === InventoryStatus.OUT_OF_STOCK) {
         updateData.inventoryStatus = InventoryStatus.IN_STOCK;
       } else if (updateProductDto.stock <= 0 && existingProduct.inventoryStatus === InventoryStatus.IN_STOCK) {
@@ -239,6 +306,21 @@ export class ProductsService {
         } catch (err) {
           console.error(`Failed to delete image file ${imageUrl}:`, err.message);
         }
+      }
+    }
+
+    // Clean up video if present
+    if (product.video) {
+      try {
+        const videoFilename = path.basename(product.video);
+        const videoDir = path.join(process.cwd(), 'public_html', 'goldenmerakigems-images', 'products', 'videos');
+        const videoPath = path.join(videoDir, videoFilename);
+        if (fs.existsSync(videoPath)) {
+          fs.unlinkSync(videoPath);
+        }
+        await this.ftpService.deleteFile(`goldenmerakigems-images/products/videos/${videoFilename}`);
+      } catch (err) {
+        console.error(`Failed to delete video file:`, err.message);
       }
     }
 
@@ -518,5 +600,111 @@ export class ProductsService {
     }
 
     return updatedProduct;
+  }
+
+  // ============================================================
+  // Video Upload / Delete APIs
+  // ============================================================
+
+  /**
+   * Upload a product video. Saves to local disk + FTP.
+   * Stores public URL in the product's `video` field.
+   */
+  async uploadVideo(id: string, file: Express.Multer.File): Promise<ProductDocument> {
+    const product = await this.productModel.findById(id);
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    validateVideoFile(file);
+
+    // If product already has a video, delete the old one first
+    if (product.video) {
+      await this._deleteVideoFiles(product.video);
+    }
+
+    const ext = path.extname(file.originalname).toLowerCase();
+    const slug = product.slug;
+    const filename = `${slug}-video${ext}`;
+    const uploadDir = path.join(process.cwd(), 'public_html', 'goldenmerakigems-images', 'products', 'videos');
+
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const filePath = path.join(uploadDir, filename);
+    fs.writeFileSync(filePath, file.buffer);
+
+    // FTP Upload video
+    try {
+      await this.ftpService.uploadFile(file.buffer, `goldenmerakigems-images/products/videos/${filename}`);
+    } catch (err) {
+      console.error(`Failed to upload product video via FTP:`, err.message);
+    }
+
+    const videoUrl = `https://goldenmerakigems.com/goldenmerakigems-images/products/videos/${filename}`;
+
+    const updatedProduct = await this.productModel
+      .findByIdAndUpdate(
+        id,
+        { $set: { video: videoUrl } },
+        { new: true }
+      )
+      .populate('category')
+      .exec();
+
+    if (!updatedProduct) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    return updatedProduct;
+  }
+
+  /**
+   * Delete a product's video from disk, FTP, and database.
+   */
+  async deleteVideo(id: string): Promise<ProductDocument> {
+    const product = await this.productModel.findById(id);
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    if (!product.video) {
+      throw new BadRequestException('This product does not have a video to delete.');
+    }
+
+    await this._deleteVideoFiles(product.video);
+
+    const updatedProduct = await this.productModel
+      .findByIdAndUpdate(
+        id,
+        { $unset: { video: 1 } },
+        { new: true }
+      )
+      .populate('category')
+      .exec();
+
+    if (!updatedProduct) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    return updatedProduct;
+  }
+
+  /**
+   * Internal helper: delete video files from disk and FTP.
+   */
+  private async _deleteVideoFiles(videoUrl: string): Promise<void> {
+    try {
+      const videoFilename = path.basename(videoUrl);
+      const videoDir = path.join(process.cwd(), 'public_html', 'goldenmerakigems-images', 'products', 'videos');
+      const videoPath = path.join(videoDir, videoFilename);
+      if (fs.existsSync(videoPath)) {
+        fs.unlinkSync(videoPath);
+      }
+      await this.ftpService.deleteFile(`goldenmerakigems-images/products/videos/${videoFilename}`);
+    } catch (err) {
+      console.error(`Failed to delete video file ${videoUrl}:`, err.message);
+    }
   }
 }
