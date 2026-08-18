@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as fs from 'fs';
@@ -17,13 +17,78 @@ import { Product, ProductDocument } from './schemas/product.schema';
 import { FtpService } from '../../common/services/ftp.service';
 
 @Injectable()
-export class ProductsService {
+export class ProductsService implements OnModuleInit {
   constructor(
     @InjectModel(Product.name)
     private readonly productModel: Model<ProductDocument>,
     private readonly notificationsService: NotificationsService,
     private readonly ftpService: FtpService,
   ) {}
+
+  async onModuleInit() {
+    await this.seedMissingDescriptions();
+  }
+
+  private async seedMissingDescriptions() {
+    try {
+      const products = await this.productModel.find({});
+      let updatedCount = 0;
+      for (const product of products) {
+        const titleTrimmed = product.title?.trim() || '';
+        const descTrimmed = product.description?.trim() || '';
+        if (!descTrimmed || descTrimmed === titleTrimmed || descTrimmed.length < 50) {
+          product.description = this.generateAutoDescription(product.title);
+          await product.save();
+          updatedCount++;
+        }
+      }
+      if (updatedCount > 0) {
+        console.log(`[ProductsService] Successfully updated descriptions for ${updatedCount} products.`);
+      }
+    } catch (err) {
+      console.error('[ProductsService] Failed to seed missing descriptions:', err);
+    }
+  }
+
+  private generateAutoDescription(title: string): string {
+    const t = title.toLowerCase();
+    const intro = `Elevate your space and personal energy with our premium ${title}, meticulously crafted to bring harmony, beauty, and positive vibrations into your everyday life. Each piece is hand-selected at Golden Meraki to ensure the highest quality, natural formation, and powerful energetic resonance.`;
+    
+    let properties = 'This certified natural healing gemstone product is hand-crafted to highlight the raw, natural beauty of the crystal. Gemstones are known to carry unique vibrational frequencies that interact with our personal energy fields to restore balance, protect against environmental stress, and help manifest specific intentions.';
+    let usage = 'Perfect for home decor, vastu correction, meditation spaces, or as a thoughtful gift for someone special. Place this beautiful piece in your living room, workspace, or bedroom to cultivate a serene, high-vibrational environment.';
+    
+    if (t.includes('pyrite')) {
+      properties = 'Pyrite is the ultimate gemstone of abundance, prosperity, and protection. Often referred to as "Fool\'s Gold," its brilliant golden sheen reflects its ability to manifest wealth, attract success, and enhance willpower. It acts as an energetic shield, blocking negative influences while boosting your confidence and vitality. It is a must-have crystal for professionals, entrepreneurs, and anyone looking to invite financial success and luck.';
+      usage = 'Place your Pyrite in the wealth corner (southeast) of your home or office, or keep it on your desk to attract wealth, opportunities, and professional advancement.';
+    } else if (t.includes('rose quartz')) {
+      properties = 'Rose Quartz is the legendary stone of unconditional love and infinite peace. It directly activates the Heart Chakra, promoting deep inner healing, self-love, compassion, and emotional harmony. Whether you are seeking to attract new relationships, restore trust in existing ones, or heal past emotional wounds, Rose Quartz wraps your spirit in a gentle, nurturing aura of loving energy.';
+      usage = 'Place Rose Quartz in your bedroom or relationship corner (southwest) to invite love, enhance harmony, and create a warm, welcoming space.';
+    } else if (t.includes('amethyst')) {
+      properties = 'Amethyst is a legendary, high-vibrational crystal of spiritual protection, cognitive clarity, and deep inner peace. Known as a natural tranquilizer, it calms active minds, relieves stress, and balances mood swings. It stimulates the Third Eye and Crown Chakras, enhancing intuition, spiritual awareness, and meditation practices while clearing negative energy fields.';
+      usage = 'Ideal for placing on your nightstand, meditation altar, or in a quiet corner of your room to aid peaceful sleep, clear dreams, and mental calm.';
+    } else if (t.includes('selenite') || t.includes('salenite')) {
+      properties = 'Selenite is a crystalline form of gypsum, renowned for its supreme energetic purity and clearing abilities. Unlike most crystals, Selenite never needs cleansing and acts as a charging station for other stones. It removes blockages, purifies the auric field, and infuses the surrounding space with a clean, positive, and high-frequency vibration.';
+      usage = 'Keep Selenite near other crystals to charge them, or place it near doorways and windows to protect your house from negative vibes.';
+    } else if (t.includes('tourmaline') || t.includes('termaline')) {
+      properties = 'Black Tourmaline is the premier protective stone in the metaphysical world. It forms a powerful energy barrier that neutralizes negative energies, psychic attacks, and harmful EMF radiation from electronic devices. It promotes grounding, emotional balance, and helps release stress and anxiety by anchoring your energy to the Earth.';
+      usage = 'Place Black Tourmaline near electronic devices (TVs, routers, computers) to block EMFs, or near the main entrance of your home to keep negative energies out.';
+    } else if (t.includes('7 chakra') || t.includes('chakra')) {
+      properties = 'This 7 Chakra healing item combines the vibrational power of seven distinct gemstones, each carefully selected to target and align one of the seven main chakras in the human body. From grounding red jasper for the Root Chakra to spiritual amethyst for the Crown Chakra, this piece harmonizes your energetic body, restoring physical vitality, emotional stability, and spiritual connection.';
+      usage = 'Use this during meditation, reiki healing, or keep it in your living area to radiate balanced, positive energy across all aspects of your life.';
+    } else if (t.includes('jade') || t.includes('zade')) {
+      properties = 'Green Jade has been cherished for centuries as a sacred stone of good fortune, emotional balance, and spiritual growth. It is highly associated with the Heart Chakra, attracting friendship, abundance, and peace while releasing negative thoughts. It brings a calm stability to the mind, allowing you to recognize your true self-worth and manifest your dreams.';
+      usage = 'Keep it in your purse, workspace, or cash drawer to amplify luck and attract wealth, or wear it close to your body for emotional balance.';
+    } else if (t.includes('bracelet')) {
+      properties = 'This elegant energy bracelet is designed to fit comfortably while acting as a continuous source of supportive, healing energy throughout your busy day. Each gemstone bead acts directly on your energy fields, helping you stay grounded, protected, or manifest your intentions depending on the properties of the stone.';
+      usage = 'Wear it daily on your receptive (left) wrist to absorb the crystal\'s energies, or on your expressive (right) wrist to project its properties outward.';
+    } else if (t.includes('tree')) {
+      properties = 'This natural crystal tree is crafted with genuine gemstone beads to simulate a miniature tree of life, symbolizing growth, stability, and abundance. In Feng Shui and Vastu, crystal trees are powerful tools used to attract positive chi (energy) and harmonize the environment, helping to block negative vibrations and generate wealth.';
+      usage = 'Place this beautiful tree in the northeast corner of your home or workspace for career and wealth luck, or in the center of the room to promote general family wellness.';
+    }
+    
+    return `${intro}\n\n${properties}\n\n${usage}`;
+  }
+
 
   private slugify(text: string): string {
     return text
