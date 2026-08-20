@@ -23,7 +23,7 @@ export class WhatsAppService {
     const itemLines = orderData.items
       .map(
         (item) =>
-          `• ${item.title}${item.selectedWidthSize ? ` (Width Size: ${item.selectedWidthSize})` : ''} (x${item.quantity}) - ₹${item.price * item.quantity}`,
+          `• ${item.title}${item.selectedWidthSize ? ` (${item.selectedWidthSize.toLowerCase().includes('bead') ? 'Bead Count' : 'Size'}: ${item.selectedWidthSize})` : ''} (x${item.quantity}) - ₹${item.price * item.quantity}`,
       )
       .join('\n');
 
