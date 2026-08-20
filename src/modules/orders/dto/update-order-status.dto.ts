@@ -12,4 +12,8 @@ export class UpdateOrderStatusDto {
   @IsEnum(PaymentStatus)
   @IsOptional()
   paymentStatus?: PaymentStatus;
+
+  @ApiPropertyOptional({ type: Boolean, description: 'If true and orderStatus is CANCELLED, restores the stock' })
+  @IsOptional()
+  restoreStock?: boolean;
 }

@@ -179,6 +179,11 @@ export class OrdersService {
   }
 
   async updateStatus(id: string, updateDto: UpdateOrderStatusDto): Promise<OrderDocument> {
+    const existingOrder = await this.orderModel.findById(id).exec();
+    if (!existingOrder) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
     const updateData: any = {};
     if (updateDto.orderStatus) updateData.orderStatus = updateDto.orderStatus;
     if (updateDto.paymentStatus) updateData.paymentStatus = updateDto.paymentStatus;
@@ -187,11 +192,44 @@ export class OrdersService {
       .findByIdAndUpdate(id, { $set: updateData }, { new: true })
       .exec();
 
-    if (!updatedOrder) {
-      throw new NotFoundException(`Order with ID ${id} not found`);
+    // If restoring stock for a cancelled order
+    if (
+      updateDto.restoreStock &&
+      updateDto.orderStatus === OrderStatus.CANCELLED &&
+      existingOrder.orderStatus !== OrderStatus.CANCELLED
+    ) {
+      for (const item of existingOrder.cartItems) {
+        if (!item.productId || !Types.ObjectId.isValid(item.productId)) continue;
+        
+        const product = await this.productModel.findById(item.productId);
+        if (!product) continue;
+        
+        if (product.sizes && product.sizes.length > 0 && item.selectedWidthSize) {
+          const sizeObj = product.sizes.find(
+            (s) => s.size.toLowerCase() === item.selectedWidthSize?.toLowerCase(),
+          );
+          if (sizeObj) {
+            sizeObj.stock = sizeObj.stock + item.quantity;
+          }
+          const totalSizeStock = product.sizes.reduce(
+            (sum, s) => sum + (s.isActive !== false ? s.stock : 0),
+            0,
+          );
+          product.stock = totalSizeStock;
+          if (totalSizeStock > 0) {
+            product.inventoryStatus = InventoryStatus.IN_STOCK;
+          }
+        } else {
+          product.stock = product.stock + item.quantity;
+          if (product.stock > 0) {
+            product.inventoryStatus = InventoryStatus.IN_STOCK;
+          }
+        }
+        await product.save();
+      }
     }
 
-    return updatedOrder;
+    return updatedOrder!;
   }
 
   async remove(id: string): Promise<{ message: string }> {

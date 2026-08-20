@@ -37,7 +37,7 @@ export class DashboardService {
       this.productModel
         .find({ stock: { $lte: 5 }, isActive: true })
         .select('title sku stock price')
-        .limit(10)
+        .limit(20)
         .exec(),
       this.orderModel.aggregate([
         { $match: { orderStatus: { $ne: 'cancelled' } } },
