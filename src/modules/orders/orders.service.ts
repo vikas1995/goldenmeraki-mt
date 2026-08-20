@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { WhatsAppService } from '../notifications/whatsapp.service';
@@ -6,12 +6,16 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { QueryOrdersDto } from './dto/query-orders.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { Order, OrderDocument, OrderStatus, PaymentStatus } from './schemas/order.schema';
+import { Product, ProductDocument } from '../products/schemas/product.schema';
+import { InventoryStatus } from '../products/enums/inventory-status.enum';
 
 @Injectable()
 export class OrdersService {
   constructor(
     @InjectModel(Order.name)
     private readonly orderModel: Model<OrderDocument>,
+    @InjectModel(Product.name)
+    private readonly productModel: Model<ProductDocument>,
     private readonly whatsAppService: WhatsAppService,
   ) {}
 
@@ -21,6 +25,69 @@ export class OrdersService {
   }
 
   async createOrder(createDto: CreateOrderDto) {
+    // Step 1: Validate stock for each cart item
+    for (const item of createDto.cartItems) {
+      if (!item.productId || !Types.ObjectId.isValid(item.productId)) continue;
+
+      const product = await this.productModel.findById(item.productId);
+      if (!product) {
+        throw new BadRequestException(`Product "${item.title}" was not found.`);
+      }
+
+      if (!product.isActive) {
+        throw new BadRequestException(`Product "${item.title}" is currently unavailable.`);
+      }
+
+      let availableStock = product.stock;
+      if (product.sizes && product.sizes.length > 0 && item.selectedWidthSize) {
+        const sizeObj = product.sizes.find(
+          (s) => s.size.toLowerCase() === item.selectedWidthSize?.toLowerCase(),
+        );
+        if (sizeObj) {
+          availableStock = sizeObj.isActive !== false ? sizeObj.stock : 0;
+        }
+      }
+
+      if (item.quantity > availableStock) {
+        const sizeStr = item.selectedWidthSize ? ` (${item.selectedWidthSize})` : '';
+        throw new BadRequestException(
+          `Cannot place order: Requested quantity (${item.quantity}) for "${item.title}"${sizeStr} exceeds available stock (${availableStock}).`,
+        );
+      }
+    }
+
+    // Step 2: Deduct stock from database for each item
+    for (const item of createDto.cartItems) {
+      if (!item.productId || !Types.ObjectId.isValid(item.productId)) continue;
+
+      const product = await this.productModel.findById(item.productId);
+      if (!product) continue;
+
+      if (product.sizes && product.sizes.length > 0 && item.selectedWidthSize) {
+        const sizeObj = product.sizes.find(
+          (s) => s.size.toLowerCase() === item.selectedWidthSize?.toLowerCase(),
+        );
+        if (sizeObj) {
+          sizeObj.stock = Math.max(0, sizeObj.stock - item.quantity);
+        }
+        const totalSizeStock = product.sizes.reduce(
+          (sum, s) => sum + (s.isActive !== false ? s.stock : 0),
+          0,
+        );
+        product.stock = totalSizeStock;
+        if (totalSizeStock <= 0) {
+          product.inventoryStatus = InventoryStatus.OUT_OF_STOCK;
+        }
+      } else {
+        product.stock = Math.max(0, product.stock - item.quantity);
+        if (product.stock <= 0) {
+          product.inventoryStatus = InventoryStatus.OUT_OF_STOCK;
+        }
+      }
+
+      await product.save();
+    }
+
     const orderNumber = this.generateOrderNumber();
 
     const formattedCartItems = createDto.cartItems.map((item) => ({
