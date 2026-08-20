@@ -46,9 +46,45 @@ export class CategoriesService {
     return category.save();
   }
 
-  async findAll(includeInactive = false): Promise<CategoryDocument[]> {
+  async findAll(includeInactive = false): Promise<any[]> {
     const filter = includeInactive ? {} : { isActive: true };
-    return this.categoryModel.find(filter).populate('parent').sort({ name: 1 }).exec();
+    const categories = await this.categoryModel.aggregate([
+      { $match: filter },
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: 'category',
+          as: 'productsData',
+        },
+      },
+      {
+        $addFields: {
+          productCount: { $size: '$productsData' },
+        },
+      },
+      {
+        $project: {
+          productsData: 0,
+        },
+      },
+      {
+        $lookup: {
+          from: 'categories',
+          localField: 'parent',
+          foreignField: '_id',
+          as: 'parent',
+        },
+      },
+      {
+        $unwind: {
+          path: '$parent',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      { $sort: { name: 1 } },
+    ]);
+    return categories;
   }
 
   async findBySlug(slug: string): Promise<CategoryDocument> {
