@@ -73,7 +73,9 @@ export class WhatsAppService {
     customerName: string;
     requestedSize?: string;
   }): Promise<boolean> {
-    const sizeStr = data.requestedSize ? ` (Width Size: ${data.requestedSize})` : '';
+    const sizeStr = data.requestedSize
+      ? ` (${data.requestedSize.toLowerCase().includes('bead') ? 'Bead Count' : 'Size'}: ${data.requestedSize})`
+      : '';
     const message = `🎉 *GOOD NEWS!* Hi ${data.customerName}, "${data.productTitle}"${sizeStr} is back in stock! Order now on GoldenMeraki.`;
     this.logger.log(`[WhatsApp Restock Notification to ${data.customerWhatsApp}]: ${message}`);
     return true;
