@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional } from 'class-validator';
+import { IsEnum, IsOptional, IsBoolean } from 'class-validator';
 import { OrderStatus, PaymentStatus } from '../schemas/order.schema';
 
 export class UpdateOrderStatusDto {
@@ -14,6 +14,7 @@ export class UpdateOrderStatusDto {
   paymentStatus?: PaymentStatus;
 
   @ApiPropertyOptional({ type: Boolean, description: 'If true and orderStatus is CANCELLED, restores the stock' })
+  @IsBoolean()
   @IsOptional()
   restoreStock?: boolean;
 }
