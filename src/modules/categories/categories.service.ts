@@ -48,43 +48,26 @@ export class CategoriesService {
 
   async findAll(includeInactive = false): Promise<any[]> {
     const filter = includeInactive ? {} : { isActive: true };
-    const categories = await this.categoryModel.aggregate([
-      { $match: filter },
-      {
-        $lookup: {
-          from: 'products',
-          localField: '_id',
-          foreignField: 'category',
-          as: 'productsData',
-        },
-      },
-      {
-        $addFields: {
-          productCount: { $size: '$productsData' },
-        },
-      },
-      {
-        $project: {
-          productsData: 0,
-        },
-      },
-      {
-        $lookup: {
-          from: 'categories',
-          localField: 'parent',
-          foreignField: '_id',
-          as: 'parent',
-        },
-      },
-      {
-        $unwind: {
-          path: '$parent',
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      { $sort: { name: 1 } },
-    ]);
-    return categories;
+    const categories = await this.categoryModel.find(filter).populate('parent').sort({ name: 1 }).lean().exec();
+    
+    const productsCollection = this.categoryModel.db.collection('products');
+    
+    const enrichedCategories = await Promise.all(
+      categories.map(async (cat) => {
+        const count = await productsCollection.countDocuments({
+          $or: [
+            { category: cat._id },
+            { category: cat._id.toString() }
+          ]
+        });
+        return {
+          ...cat,
+          productCount: count,
+        };
+      })
+    );
+    
+    return enrichedCategories;
   }
 
   async findBySlug(slug: string): Promise<CategoryDocument> {
