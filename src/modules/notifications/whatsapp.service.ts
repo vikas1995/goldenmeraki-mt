@@ -7,7 +7,7 @@ export class WhatsAppService {
   private readonly businessPhone: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.businessPhone = this.configService.get<string>('WHATSAPP_BUSINESS_NUMBER', '+919876543210');
+    this.businessPhone = this.configService.get<string>('WHATSAPP_BUSINESS_NUMBER', '+919667290056');
   }
 
   /**
