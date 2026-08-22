@@ -25,6 +25,9 @@ export class ProductSize {
   @Prop({ required: true, min: 0, default: 0 })
   stock!: number;
 
+  @Prop({ required: true, min: 0, default: 0 })
+  reservedStock!: number;
+
   @Prop({ default: true })
   isActive!: boolean;
 }
@@ -53,6 +56,9 @@ export class Product {
 
   @Prop({ required: true, min: 0, default: 0 })
   stock!: number;
+
+  @Prop({ required: true, min: 0, default: 0 })
+  reservedStock!: number;
 
   @Prop({
     type: String,

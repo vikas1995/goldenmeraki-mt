@@ -47,6 +47,9 @@ export class OrderItem {
 const OrderItemSchema = SchemaFactory.createForClass(OrderItem);
 
 export enum OrderStatus {
+  AWAITING_WHATSAPP = 'AWAITING_WHATSAPP',
+  CONFIRMED = 'CONFIRMED',
+  EXPIRED = 'EXPIRED',
   PENDING = 'PENDING',
   PROCESSING = 'PROCESSING',
   SHIPPED = 'SHIPPED',
@@ -90,7 +93,7 @@ export class Order {
     type: String,
     required: true,
     enum: OrderStatus,
-    default: OrderStatus.PENDING,
+    default: OrderStatus.AWAITING_WHATSAPP,
     index: true,
   })
   orderStatus!: OrderStatus;
@@ -111,6 +114,21 @@ export class Order {
 
   @Prop()
   generatedWhatsappMessage?: string;
+
+  @Prop()
+  whatsappHandoffAt?: Date;
+
+  @Prop()
+  awaitingWhatsappExpiresAt?: Date;
+
+  @Prop()
+  confirmedAt?: Date;
+
+  @Prop()
+  cancelledAt?: Date;
+
+  @Prop()
+  expiredAt?: Date;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

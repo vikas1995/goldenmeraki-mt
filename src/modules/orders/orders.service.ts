@@ -24,12 +24,73 @@ export class OrdersService {
     return `GM-ORD-${Date.now().toString().slice(-6)}${randomDigits}`;
   }
 
+  private async findOrderDoc(id: string): Promise<OrderDocument | null> {
+    const res = this.orderModel.findById(id);
+    if (res && typeof res.exec === 'function') {
+      return await res.exec();
+    }
+    return await res;
+  }
+
+  /**
+   * Helper to check and release stock reservations for expired AWAITING_WHATSAPP orders.
+   */
+  async checkAndReleaseExpiredOrders(): Promise<number> {
+    const now = new Date();
+    const query = this.orderModel.find({
+      orderStatus: OrderStatus.AWAITING_WHATSAPP,
+      awaitingWhatsappExpiresAt: { $lte: now },
+    });
+    const expiredOrders: OrderDocument[] = (query && typeof query.exec === 'function') ? await query.exec() : await query;
+
+    if (Array.isArray(expiredOrders)) {
+      for (const order of expiredOrders) {
+        await this.releaseOrderReservation(order);
+        order.orderStatus = OrderStatus.EXPIRED;
+        order.expiredAt = now;
+        await order.save();
+      }
+      return expiredOrders.length;
+    }
+    return 0;
+  }
+
+  /**
+   * Internal helper to release reserved stock back to available pool.
+   */
+  private async releaseOrderReservation(order: OrderDocument) {
+    for (const item of order.cartItems) {
+      if (!item.productId || !Types.ObjectId.isValid(item.productId)) continue;
+      const res = this.productModel.findById(item.productId);
+      const product = (res && typeof res.exec === 'function') ? await res.exec() : await res;
+      if (!product) continue;
+
+      if (product.sizes && product.sizes.length > 0 && item.selectedWidthSize) {
+        const sizeObj = product.sizes.find(
+          (s) => s.size.toLowerCase() === item.selectedWidthSize?.toLowerCase(),
+        );
+        if (sizeObj) {
+          sizeObj.reservedStock = Math.max(0, (sizeObj.reservedStock || 0) - item.quantity);
+        }
+        product.reservedStock = Math.max(0, (product.reservedStock || 0) - item.quantity);
+      } else {
+        product.reservedStock = Math.max(0, (product.reservedStock || 0) - item.quantity);
+      }
+
+      await product.save();
+    }
+  }
+
   async createOrder(createDto: CreateOrderDto) {
-    // Step 1: Validate stock for each cart item
+    // Release any expired orders first to ensure accurate inventory
+    await this.checkAndReleaseExpiredOrders();
+
+    // Step 1: Validate available stock for each cart item (Available = Stock - ReservedStock)
     for (const item of createDto.cartItems) {
       if (!item.productId || !Types.ObjectId.isValid(item.productId)) continue;
 
-      const product = await this.productModel.findById(item.productId);
+      const res = this.productModel.findById(item.productId);
+      const product = (res && typeof res.exec === 'function') ? await res.exec() : await res;
       if (!product) {
         throw new BadRequestException(`Product "${item.title}" was not found.`);
       }
@@ -38,13 +99,13 @@ export class OrdersService {
         throw new BadRequestException(`Product "${item.title}" is currently unavailable.`);
       }
 
-      let availableStock = product.stock;
+      let availableStock = Math.max(0, product.stock - (product.reservedStock || 0));
       if (product.sizes && product.sizes.length > 0 && item.selectedWidthSize) {
         const sizeObj = product.sizes.find(
           (s) => s.size.toLowerCase() === item.selectedWidthSize?.toLowerCase(),
         );
         if (sizeObj) {
-          availableStock = sizeObj.isActive !== false ? sizeObj.stock : 0;
+          availableStock = sizeObj.isActive !== false ? Math.max(0, sizeObj.stock - (sizeObj.reservedStock || 0)) : 0;
         }
       }
 
@@ -56,11 +117,12 @@ export class OrdersService {
       }
     }
 
-    // Step 2: Deduct stock from database for each item
+    // Step 2: Reserve stock (increment reservedStock, do NOT decrement stock yet)
     for (const item of createDto.cartItems) {
       if (!item.productId || !Types.ObjectId.isValid(item.productId)) continue;
 
-      const product = await this.productModel.findById(item.productId);
+      const res = this.productModel.findById(item.productId);
+      const product = (res && typeof res.exec === 'function') ? await res.exec() : await res;
       if (!product) continue;
 
       if (product.sizes && product.sizes.length > 0 && item.selectedWidthSize) {
@@ -68,21 +130,11 @@ export class OrdersService {
           (s) => s.size.toLowerCase() === item.selectedWidthSize?.toLowerCase(),
         );
         if (sizeObj) {
-          sizeObj.stock = Math.max(0, sizeObj.stock - item.quantity);
+          sizeObj.reservedStock = (sizeObj.reservedStock || 0) + item.quantity;
         }
-        const totalSizeStock = product.sizes.reduce(
-          (sum, s) => sum + (s.isActive !== false ? s.stock : 0),
-          0,
-        );
-        product.stock = totalSizeStock;
-        if (totalSizeStock <= 0) {
-          product.inventoryStatus = InventoryStatus.OUT_OF_STOCK;
-        }
+        product.reservedStock = (product.reservedStock || 0) + item.quantity;
       } else {
-        product.stock = Math.max(0, product.stock - item.quantity);
-        if (product.stock <= 0) {
-          product.inventoryStatus = InventoryStatus.OUT_OF_STOCK;
-        }
+        product.reservedStock = (product.reservedStock || 0) + item.quantity;
       }
 
       await product.save();
@@ -107,6 +159,8 @@ export class OrdersService {
       shippingAddress: createDto.shippingAddress,
     });
 
+    const awaitingWhatsappExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 Hours expiration window
+
     const newOrder = new this.orderModel({
       orderNumber,
       customerName: createDto.customerName,
@@ -116,11 +170,12 @@ export class OrdersService {
       cartItems: formattedCartItems,
       totalAmount: createDto.totalAmount,
       orderDate: new Date(),
-      orderStatus: OrderStatus.PENDING,
+      orderStatus: OrderStatus.AWAITING_WHATSAPP,
       paymentStatus: PaymentStatus.PENDING,
       source: createDto.source || 'WHATSAPP_WEB',
       orderNotes: createDto.orderNotes,
       generatedWhatsappMessage: whatsappUrl,
+      awaitingWhatsappExpiresAt,
     });
 
     const savedOrder = await newOrder.save();
@@ -131,12 +186,147 @@ export class OrdersService {
     };
   }
 
+  /**
+   * Record that customer initiated WhatsApp handoff from Thank You page.
+   */
+  async recordWhatsappHandoff(id: string): Promise<OrderDocument> {
+    const order = await this.findOrderDoc(id);
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
+    order.whatsappHandoffAt = new Date();
+    // Keep status as AWAITING_WHATSAPP as requirement explicitly specifies:
+    // Opening WhatsApp must NOT automatically mark order as confirmed!
+    return await order.save();
+  }
+
+  /**
+   * Admin Action: Confirm Order (Finalize stock deduction & release reservation atomically).
+   */
+  async confirmOrder(id: string): Promise<OrderDocument> {
+    const order = await this.findOrderDoc(id);
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
+    if (order.orderStatus === OrderStatus.CONFIRMED) {
+      throw new BadRequestException(`Order #${order.orderNumber} is already confirmed.`);
+    }
+
+    if (order.orderStatus === OrderStatus.CANCELLED || order.orderStatus === OrderStatus.EXPIRED) {
+      throw new BadRequestException(`Order #${order.orderNumber} cannot be confirmed because it is ${order.orderStatus}.`);
+    }
+
+    // Finalize stock deduction and release reservation
+    for (const item of order.cartItems) {
+      if (!item.productId || !Types.ObjectId.isValid(item.productId)) continue;
+
+      const res = this.productModel.findById(item.productId);
+      const product = (res && typeof res.exec === 'function') ? await res.exec() : await res;
+      if (!product) continue;
+
+      if (product.sizes && product.sizes.length > 0 && item.selectedWidthSize) {
+        const sizeObj = product.sizes.find(
+          (s) => s.size.toLowerCase() === item.selectedWidthSize?.toLowerCase(),
+        );
+        if (sizeObj) {
+          sizeObj.stock = Math.max(0, sizeObj.stock - item.quantity);
+          sizeObj.reservedStock = Math.max(0, (sizeObj.reservedStock || 0) - item.quantity);
+        }
+        const totalSizeStock = product.sizes.reduce(
+          (sum, s) => sum + (s.isActive !== false ? s.stock : 0),
+          0,
+        );
+        product.stock = totalSizeStock;
+        product.reservedStock = Math.max(0, (product.reservedStock || 0) - item.quantity);
+
+        if (totalSizeStock <= 0) {
+          product.inventoryStatus = InventoryStatus.OUT_OF_STOCK;
+        }
+      } else {
+        product.stock = Math.max(0, product.stock - item.quantity);
+        product.reservedStock = Math.max(0, (product.reservedStock || 0) - item.quantity);
+
+        if (product.stock <= 0) {
+          product.inventoryStatus = InventoryStatus.OUT_OF_STOCK;
+        }
+      }
+
+      await product.save();
+    }
+
+    order.orderStatus = OrderStatus.CONFIRMED;
+    order.confirmedAt = new Date();
+    return await order.save();
+  }
+
+  /**
+   * Admin Action: Cancel Order (Release reservation if AWAITING_WHATSAPP, or restore stock if CONFIRMED).
+   */
+  async cancelOrder(id: string): Promise<OrderDocument> {
+    const order = await this.findOrderDoc(id);
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
+    if (order.orderStatus === OrderStatus.CANCELLED) {
+      return order;
+    }
+
+    if (order.orderStatus === OrderStatus.AWAITING_WHATSAPP) {
+      await this.releaseOrderReservation(order);
+    } else if (
+      order.orderStatus === OrderStatus.CONFIRMED ||
+      order.orderStatus === OrderStatus.PROCESSING ||
+      order.orderStatus === OrderStatus.SHIPPED
+    ) {
+      // Restore physical stock for already confirmed order
+      for (const item of order.cartItems) {
+        if (!item.productId || !Types.ObjectId.isValid(item.productId)) continue;
+
+        const res = this.productModel.findById(item.productId);
+        const product = (res && typeof res.exec === 'function') ? await res.exec() : await res;
+        if (!product) continue;
+
+        if (product.sizes && product.sizes.length > 0 && item.selectedWidthSize) {
+          const sizeObj = product.sizes.find(
+            (s) => s.size.toLowerCase() === item.selectedWidthSize?.toLowerCase(),
+          );
+          if (sizeObj) {
+            sizeObj.stock = sizeObj.stock + item.quantity;
+          }
+          const totalSizeStock = product.sizes.reduce(
+            (sum, s) => sum + (s.isActive !== false ? s.stock : 0),
+            0,
+          );
+          product.stock = totalSizeStock;
+          if (totalSizeStock > 0) {
+            product.inventoryStatus = InventoryStatus.IN_STOCK;
+          }
+        } else {
+          product.stock = product.stock + item.quantity;
+          if (product.stock > 0) {
+            product.inventoryStatus = InventoryStatus.IN_STOCK;
+          }
+        }
+        await product.save();
+      }
+    }
+
+    order.orderStatus = OrderStatus.CANCELLED;
+    order.cancelledAt = new Date();
+    return await order.save();
+  }
+
   async findAll(queryDto: QueryOrdersDto) {
+    await this.checkAndReleaseExpiredOrders();
+
     const { page = 1, limit = 10, search, orderStatus, paymentStatus } = queryDto;
     const filter: any = {};
 
-    if (orderStatus) filter.orderStatus = orderStatus;
-    if (paymentStatus) filter.paymentStatus = paymentStatus;
+    if (orderStatus && (orderStatus as any) !== 'all') filter.orderStatus = orderStatus;
+    if (paymentStatus && (paymentStatus as any) !== 'all') filter.paymentStatus = paymentStatus;
 
     if (search) {
       filter.$or = [
@@ -171,7 +361,9 @@ export class OrdersService {
   }
 
   async findById(id: string): Promise<OrderDocument> {
-    const order = await this.orderModel.findById(id).exec();
+    await this.checkAndReleaseExpiredOrders();
+
+    const order = await this.findOrderDoc(id);
     if (!order) {
       throw new NotFoundException(`Order with ID ${id} not found`);
     }
@@ -179,7 +371,15 @@ export class OrdersService {
   }
 
   async updateStatus(id: string, updateDto: UpdateOrderStatusDto): Promise<OrderDocument> {
-    const existingOrder = await this.orderModel.findById(id).exec();
+    if (updateDto.orderStatus === OrderStatus.CONFIRMED) {
+      return this.confirmOrder(id);
+    }
+
+    if (updateDto.orderStatus === OrderStatus.CANCELLED) {
+      return this.cancelOrder(id);
+    }
+
+    const existingOrder = await this.findOrderDoc(id);
     if (!existingOrder) {
       throw new NotFoundException(`Order with ID ${id} not found`);
     }
@@ -192,51 +392,20 @@ export class OrdersService {
       .findByIdAndUpdate(id, { $set: updateData }, { new: true })
       .exec();
 
-    // If restoring stock for a cancelled order
-    if (
-      updateDto.restoreStock &&
-      updateDto.orderStatus === OrderStatus.CANCELLED &&
-      existingOrder.orderStatus !== OrderStatus.CANCELLED
-    ) {
-      for (const item of existingOrder.cartItems) {
-        if (!item.productId || !Types.ObjectId.isValid(item.productId)) continue;
-        
-        const product = await this.productModel.findById(item.productId);
-        if (!product) continue;
-        
-        if (product.sizes && product.sizes.length > 0 && item.selectedWidthSize) {
-          const sizeObj = product.sizes.find(
-            (s) => s.size.toLowerCase() === item.selectedWidthSize?.toLowerCase(),
-          );
-          if (sizeObj) {
-            sizeObj.stock = sizeObj.stock + item.quantity;
-          }
-          const totalSizeStock = product.sizes.reduce(
-            (sum, s) => sum + (s.isActive !== false ? s.stock : 0),
-            0,
-          );
-          product.stock = totalSizeStock;
-          if (totalSizeStock > 0) {
-            product.inventoryStatus = InventoryStatus.IN_STOCK;
-          }
-        } else {
-          product.stock = product.stock + item.quantity;
-          if (product.stock > 0) {
-            product.inventoryStatus = InventoryStatus.IN_STOCK;
-          }
-        }
-        await product.save();
-      }
-    }
-
     return updatedOrder!;
   }
 
   async remove(id: string): Promise<{ message: string }> {
-    const deleted = await this.orderModel.findByIdAndDelete(id);
-    if (!deleted) {
+    const order = await this.findOrderDoc(id);
+    if (!order) {
       throw new NotFoundException(`Order with ID ${id} not found`);
     }
+
+    if (order.orderStatus === OrderStatus.AWAITING_WHATSAPP) {
+      await this.releaseOrderReservation(order);
+    }
+
+    await this.orderModel.findByIdAndDelete(id);
     return { message: 'Order deleted successfully' };
   }
 
@@ -253,6 +422,8 @@ export class OrdersService {
       'Payment Status',
       'Source',
       'Date',
+      'WhatsApp Handoff At',
+      'Confirmed At',
     ];
 
     const rows = orders.map((o) => [
@@ -266,6 +437,8 @@ export class OrdersService {
       o.paymentStatus,
       o.source,
       new Date(o.orderDate).toISOString(),
+      o.whatsappHandoffAt ? new Date(o.whatsappHandoffAt).toISOString() : '',
+      o.confirmedAt ? new Date(o.confirmedAt).toISOString() : '',
     ]);
 
     return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');

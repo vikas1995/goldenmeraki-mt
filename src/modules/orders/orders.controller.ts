@@ -28,10 +28,36 @@ export class OrdersController {
 
   @Public()
   @Post()
-  @ApiOperation({ summary: 'Create order and generate WhatsApp link' })
-  @ApiResponse({ status: 201, description: 'Order created and WhatsApp URL generated' })
+  @ApiOperation({ summary: 'Create order and reserve stock' })
+  @ApiResponse({ status: 201, description: 'Order created with AWAITING_WHATSAPP status and WhatsApp URL generated' })
   create(@Body() createOrderDto: CreateOrderDto) {
     return this.ordersService.createOrder(createOrderDto);
+  }
+
+  @Public()
+  @Post(':id/whatsapp-handoff')
+  @ApiOperation({ summary: 'Record customer initiating WhatsApp handoff' })
+  @ApiResponse({ status: 200, description: 'WhatsApp handoff timestamp recorded' })
+  recordWhatsappHandoff(@Param('id') id: string) {
+    return this.ordersService.recordWhatsappHandoff(id);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Post(':id/confirm')
+  @ApiOperation({ summary: 'Confirm order and finalize stock deduction (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Order confirmed and stock permanently deducted' })
+  confirmOrder(@Param('id') id: string) {
+    return this.ordersService.confirmOrder(id);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @Post(':id/cancel')
+  @ApiOperation({ summary: 'Cancel order and release reserved stock / restore stock (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Order cancelled and stock released/restored' })
+  cancelOrder(@Param('id') id: string) {
+    return this.ordersService.cancelOrder(id);
   }
 
   @Roles(UserRole.ADMIN)
