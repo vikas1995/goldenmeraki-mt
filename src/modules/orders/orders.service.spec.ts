@@ -14,16 +14,24 @@ describe('OrdersService - Stock Reservation & Order Lifecycle', () => {
 
   const mockProduct = {
     _id: '507f1f77bcf86cd799439011',
-    title: 'Natural Pyrite Bracelet',
-    stock: 20,
+    title: 'Natural Pyrite Stone',
+    stock: 29,
     reservedStock: 0,
     isActive: true,
+    sizes: [
+      { size: '25 Gram', price: 899, stock: 19, reservedStock: 0, isActive: true },
+      { size: '50 Gram', price: 1200, stock: 10, reservedStock: 0, isActive: true },
+    ],
     save: jest.fn().mockResolvedValue(true),
   };
 
   beforeEach(async () => {
-    mockProduct.stock = 20;
+    mockProduct.stock = 29;
     mockProduct.reservedStock = 0;
+    mockProduct.sizes[0].stock = 19;
+    mockProduct.sizes[0].reservedStock = 0;
+    mockProduct.sizes[1].stock = 10;
+    mockProduct.sizes[1].reservedStock = 0;
     mockProduct.save.mockClear();
 
     mockProductModel = {
@@ -71,7 +79,7 @@ describe('OrdersService - Stock Reservation & Order Lifecycle', () => {
     service = module.get<OrdersService>(OrdersService);
   });
 
-  it('1. Normal checkout: reserves stock and sets status to AWAITING_WHATSAPP', async () => {
+  it('1. Normal checkout: reserves variant stock and sets status to AWAITING_WHATSAPP', async () => {
     const dto = {
       customerName: 'Aarav Sharma',
       phone: '9876543210',
@@ -80,19 +88,20 @@ describe('OrdersService - Stock Reservation & Order Lifecycle', () => {
       cartItems: [
         {
           productId: mockProduct._id,
-          title: 'Natural Pyrite Bracelet',
+          title: 'Natural Pyrite Stone',
+          selectedWidthSize: '50 Gram',
           quantity: 1,
-          price: 999,
+          price: 1200,
         },
       ],
-      totalAmount: 999,
+      totalAmount: 1200,
     };
 
     const result = await service.createOrder(dto as any);
 
     expect(result.order.orderStatus).toBe(OrderStatus.AWAITING_WHATSAPP);
-    expect(mockProduct.stock).toBe(20); // Actual stock unchanged
-    expect(mockProduct.reservedStock).toBe(1); // Reserved stock increased
+    expect(mockProduct.sizes[1].stock).toBe(10); // Actual variant stock unchanged
+    expect(mockProduct.sizes[1].reservedStock).toBe(1); // Variant reserved stock increased
     expect(result.whatsappUrl).toContain('https://wa.me');
   });
 
@@ -115,12 +124,11 @@ describe('OrdersService - Stock Reservation & Order Lifecycle', () => {
 
     expect(updated.orderStatus).toBe(OrderStatus.AWAITING_WHATSAPP);
     expect(updated.whatsappHandoffAt).toBeInstanceOf(Date);
-    expect(mockProduct.stock).toBe(20);
   });
 
-  it('3. Admin confirms order: finalizes stock deduction and releases reservation', async () => {
-    mockProduct.stock = 20;
-    mockProduct.reservedStock = 1;
+  it('3. Admin confirms order: finalizes stock deduction for specific variant only', async () => {
+    mockProduct.sizes[1].stock = 10;
+    mockProduct.sizes[1].reservedStock = 1;
 
     const mockOrder = {
       _id: 'order_123',
@@ -129,9 +137,10 @@ describe('OrdersService - Stock Reservation & Order Lifecycle', () => {
       cartItems: [
         {
           productId: mockProduct._id,
-          title: 'Natural Pyrite Bracelet',
+          title: 'Natural Pyrite Stone',
+          selectedWidthSize: '50 Gram',
           quantity: 1,
-          price: 999,
+          price: 1200,
         },
       ],
       save: jest.fn().mockImplementation(function () {
@@ -147,8 +156,9 @@ describe('OrdersService - Stock Reservation & Order Lifecycle', () => {
     const confirmed = await service.confirmOrder('order_123');
 
     expect(confirmed.orderStatus).toBe(OrderStatus.CONFIRMED);
-    expect(mockProduct.stock).toBe(19); // Actual stock deducted
-    expect(mockProduct.reservedStock).toBe(0); // Reservation released
+    expect(mockProduct.sizes[0].stock).toBe(19); // 25 Gram stock UNCHANGED
+    expect(mockProduct.sizes[1].stock).toBe(9); // 50 Gram stock deducted from 10 to 9
+    expect(mockProduct.stock).toBe(28); // Total aggregated stock updated
   });
 
   it('4. Admin tries to confirm an already confirmed order: throws exception', async () => {
@@ -167,9 +177,9 @@ describe('OrdersService - Stock Reservation & Order Lifecycle', () => {
     await expect(service.confirmOrder('order_123')).rejects.toThrow(BadRequestException);
   });
 
-  it('5. Admin cancels awaiting order: releases reserved stock', async () => {
-    mockProduct.stock = 20;
-    mockProduct.reservedStock = 1;
+  it('5. Admin cancels awaiting order: releases reserved stock of variant', async () => {
+    mockProduct.sizes[1].stock = 10;
+    mockProduct.sizes[1].reservedStock = 1;
 
     const mockOrder = {
       _id: 'order_123',
@@ -177,9 +187,10 @@ describe('OrdersService - Stock Reservation & Order Lifecycle', () => {
       cartItems: [
         {
           productId: mockProduct._id,
-          title: 'Natural Pyrite Bracelet',
+          title: 'Natural Pyrite Stone',
+          selectedWidthSize: '50 Gram',
           quantity: 1,
-          price: 999,
+          price: 1200,
         },
       ],
       save: jest.fn().mockImplementation(function () {
@@ -195,13 +206,13 @@ describe('OrdersService - Stock Reservation & Order Lifecycle', () => {
     const cancelled = await service.cancelOrder('order_123');
 
     expect(cancelled.orderStatus).toBe(OrderStatus.CANCELLED);
-    expect(mockProduct.stock).toBe(20);
-    expect(mockProduct.reservedStock).toBe(0);
+    expect(mockProduct.sizes[1].stock).toBe(10);
+    expect(mockProduct.sizes[1].reservedStock).toBe(0);
   });
 
-  it('6. Prevent overselling when reserved stock equals physical stock', async () => {
-    mockProduct.stock = 1;
-    mockProduct.reservedStock = 1; // Available = 0
+  it('6. Prevent overselling when reserved variant stock equals physical variant stock', async () => {
+    mockProduct.sizes[1].stock = 1;
+    mockProduct.sizes[1].reservedStock = 1; // Available 50 Gram = 0
 
     const dto = {
       customerName: 'Karan Patel',
@@ -211,12 +222,13 @@ describe('OrdersService - Stock Reservation & Order Lifecycle', () => {
       cartItems: [
         {
           productId: mockProduct._id,
-          title: 'Natural Pyrite Bracelet',
+          title: 'Natural Pyrite Stone',
+          selectedWidthSize: '50 Gram',
           quantity: 1,
-          price: 999,
+          price: 1200,
         },
       ],
-      totalAmount: 999,
+      totalAmount: 1200,
     };
 
     await expect(service.createOrder(dto as any)).rejects.toThrow(BadRequestException);
