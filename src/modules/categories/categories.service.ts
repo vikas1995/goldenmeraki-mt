@@ -98,7 +98,7 @@ export class CategoriesService {
     const category = await this.categoryModel.findByIdAndUpdate(
       id,
       { $set: updateData },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!category) {
@@ -185,7 +185,7 @@ export class CategoriesService {
     const updatedCategory = await this.categoryModel.findByIdAndUpdate(
       id,
       { $set: { image: imageUrl } },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!updatedCategory) {
@@ -222,7 +222,7 @@ export class CategoriesService {
     const updatedCategory = await this.categoryModel.findByIdAndUpdate(
       id,
       { $unset: { image: 1 } },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!updatedCategory) {

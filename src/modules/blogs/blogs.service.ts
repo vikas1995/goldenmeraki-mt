@@ -71,7 +71,7 @@ export class BlogsService {
     const updatedBlog = await this.blogModel.findByIdAndUpdate(
       id,
       { $set: updateData },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!updatedBlog) {

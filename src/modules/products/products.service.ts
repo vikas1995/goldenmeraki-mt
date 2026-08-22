@@ -327,7 +327,7 @@ export class ProductsService implements OnModuleInit {
     }
 
     const updatedProduct = await this.productModel
-      .findByIdAndUpdate(id, { $set: updateData }, { new: true })
+      .findByIdAndUpdate(id, { $set: updateData }, { returnDocument: 'after' })
       .populate('category')
       .exec();
 
@@ -501,7 +501,7 @@ export class ProductsService implements OnModuleInit {
       .findByIdAndUpdate(
         id,
         { $push: { images: imageUrl } },
-        { new: true }
+        { returnDocument: 'after' }
       )
       .populate('category')
       .exec();
@@ -581,7 +581,7 @@ export class ProductsService implements OnModuleInit {
       .findByIdAndUpdate(
         id,
         { $set: { images: updatedImages } },
-        { new: true }
+        { returnDocument: 'after' }
       )
       .populate('category')
       .exec();
@@ -603,7 +603,7 @@ export class ProductsService implements OnModuleInit {
       .findByIdAndUpdate(
         id,
         { $set: { images: newImagesOrder } },
-        { new: true }
+        { returnDocument: 'after' }
       )
       .populate('category')
       .exec();
@@ -655,7 +655,7 @@ export class ProductsService implements OnModuleInit {
       .findByIdAndUpdate(
         id,
         { $pull: { images: imageUrl } },
-        { new: true }
+        { returnDocument: 'after' }
       )
       .populate('category')
       .exec();
@@ -713,7 +713,7 @@ export class ProductsService implements OnModuleInit {
       .findByIdAndUpdate(
         id,
         { $set: { video: videoUrl } },
-        { new: true }
+        { returnDocument: 'after' }
       )
       .populate('category')
       .exec();
@@ -744,7 +744,7 @@ export class ProductsService implements OnModuleInit {
       .findByIdAndUpdate(
         id,
         { $unset: { video: 1 } },
-        { new: true }
+        { returnDocument: 'after' }
       )
       .populate('category')
       .exec();

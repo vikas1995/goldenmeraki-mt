@@ -24,7 +24,7 @@ export class ContactService {
     const contact = await this.contactModel.findByIdAndUpdate(
       id,
       { isRead: true },
-      { new: true },
+      { returnDocument: 'after' },
     );
     if (!contact) {
       throw new NotFoundException(`Contact message with ID ${id} not found`);

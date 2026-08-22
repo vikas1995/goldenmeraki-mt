@@ -117,7 +117,7 @@ export class AbandonedCartService {
     }
 
     const updated = await this.abandonedCartModel
-      .findByIdAndUpdate(id, { $set: updateData }, { new: true })
+      .findByIdAndUpdate(id, { $set: updateData }, { returnDocument: 'after' })
       .exec();
 
     if (!updated) {

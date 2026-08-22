@@ -389,7 +389,7 @@ export class OrdersService {
     if (updateDto.paymentStatus) updateData.paymentStatus = updateDto.paymentStatus;
 
     const updatedOrder = await this.orderModel
-      .findByIdAndUpdate(id, { $set: updateData }, { new: true })
+      .findByIdAndUpdate(id, { $set: updateData }, { returnDocument: 'after' })
       .exec();
 
     return updatedOrder!;

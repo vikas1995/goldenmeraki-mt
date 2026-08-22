@@ -102,7 +102,7 @@ export class UsersService implements OnModuleInit {
     const updatedUser = await this.userModel.findByIdAndUpdate(
       userId,
       { $set: updateUserDto },
-      { new: true },
+      { returnDocument: 'after' },
     );
     if (!updatedUser) {
       throw new NotFoundException(`User with ID ${userId} not found`);

@@ -96,7 +96,7 @@ export class NotificationsService {
     const notification = await this.notificationModel.findByIdAndUpdate(
       id,
       { $set: updateData },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!notification) {
