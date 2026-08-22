@@ -90,6 +90,15 @@ export class Product {
   @Prop({ trim: true, default: '' })
   chakra?: string;
 
+  @Prop({ trim: true })
+  seoTitle?: string;
+
+  @Prop({ trim: true })
+  seoDescription?: string;
+
+  @Prop({ trim: true })
+  seoKeywords?: string;
+
   /**
    * Structured size variants — the source of truth for sized products.
    * Each entry has its own price, originalPrice, discountPrice, stock, isActive.

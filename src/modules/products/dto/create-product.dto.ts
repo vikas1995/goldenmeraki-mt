@@ -126,6 +126,21 @@ export class CreateProductDto {
   @IsOptional()
   chakra?: string;
 
+  @ApiPropertyOptional({ example: 'Pyrite Stone AAA Grade | Natural Crystal Cluster | Golden Meraki' })
+  @IsString()
+  @IsOptional()
+  seoTitle?: string;
+
+  @ApiPropertyOptional({ example: 'Buy raw natural AAA grade pyrite stone cluster at Golden Meraki Gems. Attract wealth, abundance & protection.' })
+  @IsString()
+  @IsOptional()
+  seoDescription?: string;
+
+  @ApiPropertyOptional({ example: 'pyrite stone, fool gold, crystal for wealth, raw pyrite cluster' })
+  @IsString()
+  @IsOptional()
+  seoKeywords?: string;
+
   @ApiPropertyOptional({
     description: 'Size variants with per-size pricing and stock',
     type: [SizeVariantDto],

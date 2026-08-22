@@ -23,6 +23,15 @@ export class Category {
   @Prop({ type: Types.ObjectId, ref: 'Category', default: null })
   parent?: Category | Types.ObjectId;
 
+  @Prop({ trim: true })
+  seoTitle?: string;
+
+  @Prop({ trim: true })
+  seoDescription?: string;
+
+  @Prop({ trim: true })
+  seoKeywords?: string;
+
   @Prop({ default: true })
   isActive: boolean;
 }

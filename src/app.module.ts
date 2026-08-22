@@ -25,6 +25,8 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { UsersModule } from './modules/users/users.module';
 
+import { SeoModule } from './modules/seo/seo.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -68,6 +70,7 @@ import { UsersModule } from './modules/users/users.module';
     ContactModule,
     SettingsModule,
     DashboardModule,
+    SeoModule,
   ],
   controllers: [AppController],
   providers: [
