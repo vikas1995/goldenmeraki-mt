@@ -126,6 +126,13 @@ export class ProductsService implements OnModuleInit {
         };
       });
     }
+
+    if (product && Array.isArray(product.sizes) && product.sizes.length > 0) {
+      product.stock = product.sizes.reduce(
+        (sum: number, s: any) => sum + (s.isActive !== false ? Number(s.stock || 0) : 0),
+        0,
+      );
+    }
   }
 
   async create(createProductDto: CreateProductDto): Promise<ProductDocument> {
@@ -137,18 +144,24 @@ export class ProductsService implements OnModuleInit {
       isActive: s.isActive !== false,
     }));
 
+    let stock = createProductDto.stock;
+    if (sizes.length > 0) {
+      stock = sizes.reduce((sum, s) => sum + (s.isActive ? Number(s.stock || 0) : 0), 0);
+    }
+
     // Auto set inventory status
     let inventoryStatus = createProductDto.inventoryStatus || InventoryStatus.IN_STOCK;
     if (sizes.length > 0) {
       // For sized products, check if any active size has stock
-      const hasActiveStock = sizes.some((s) => s.isActive && s.stock > 0);
+      const hasActiveStock = stock > 0;
       inventoryStatus = hasActiveStock ? InventoryStatus.IN_STOCK : InventoryStatus.OUT_OF_STOCK;
-    } else if (createProductDto.stock <= 0 && inventoryStatus === InventoryStatus.IN_STOCK) {
+    } else if (stock <= 0 && inventoryStatus === InventoryStatus.IN_STOCK) {
       inventoryStatus = InventoryStatus.OUT_OF_STOCK;
     }
 
     const product = new this.productModel({
       ...createProductDto,
+      stock,
       sizes,
       inventoryStatus,
       slug,
@@ -312,8 +325,14 @@ export class ProductsService implements OnModuleInit {
         isActive: s.isActive !== false,
       }));
 
+      // Recompute total stock from sizes
+      updateData.stock = updateData.sizes.reduce(
+        (sum: number, s: any) => sum + (s.isActive ? Number(s.stock || 0) : 0),
+        0,
+      );
+
       // Recompute inventory status based on sizes
-      const hasActiveStock = updateData.sizes.some((s: any) => s.isActive && s.stock > 0);
+      const hasActiveStock = updateData.stock > 0;
       if (updateProductDto.inventoryStatus === undefined) {
         updateData.inventoryStatus = hasActiveStock ? InventoryStatus.IN_STOCK : InventoryStatus.OUT_OF_STOCK;
       }
